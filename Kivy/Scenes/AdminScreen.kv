@@ -1,0 +1,196 @@
+<AdminScreen>:
+    name: 'admin'
+    FloatLayout:
+        size_hint: None, None
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: 'Back to Game'
+            id: back
+            center_x: root.center_x
+            center_y: root.center_y + 260
+            color: 0.019, 0.337, 1, 1
+            size: 280, 80
+            on_press: root.manager.current = 'main'
+            on_touch_up: root.reset_colors()
+
+        Label:
+            text: ' '
+            id: pw
+            font_size: 60
+            color: 1, 1, 1, 1
+            bold: True
+            outline_width: self.font_size * 0.1
+            outline_color: 0, 0, 0
+            center_x: root.center_x
+            center_y: root.center_y + 160
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '1'
+            id: one
+            center_x: root.center_x - 100
+            center_y: root.center_y + 60
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.one_button_down()
+            on_release: root.add_num(1)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '2'
+            id: two
+            center_x: root.center_x
+            center_y: root.center_y + 60
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.two_button_down()
+            on_release: root.add_num(2)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '3'
+            id: three
+            center_x: root.center_x + 100
+            center_y: root.center_y + 60
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.three_button_down()
+            on_release: root.add_num(3)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '4'
+            id: four
+            center_x: root.center_x - 100
+            center_y: root.center_y - 40
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.four_button_down()
+            on_release: root.add_num(4)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '5'
+            id: five
+            center_x: root.center_x
+            center_y: root.center_y - 40
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.five_button_down()
+            on_release: root.add_num(5)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '6'
+            id: six
+            center_x: root.center_x + 100
+            center_y: root.center_y - 40
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.six_button_down()
+            on_release: root.add_num(6)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '7'
+            id: seven
+            center_x: root.center_x - 100
+            center_y: root.center_y - 140
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.seven_button_down()
+            on_release: root.add_num(7)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '8'
+            id: eight
+            center_x: root.center_x
+            center_y: root.center_y - 140
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.eight_button_down()
+            on_release: root.add_num(8)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '9'
+            id: nine
+            center_x: root.center_x + 100
+            center_y: root.center_y - 140
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.nine_button_down()
+            on_release: root.add_num(9)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: '0'
+            id: zero
+            center_x: root.center_x
+            center_y: root.center_y - 240
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.zero_button_down()
+            on_release: root.add_num(0)
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: 'Del'
+            id: backspace
+            center_x: root.center_x - 100
+            center_y: root.center_y - 240
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.backspace_button_down()
+            on_release: root.remove_num()
+            on_touch_up: root.reset_colors()
+
+        DPEAButton:
+            background_color: 0, 0, 0, 0
+            background_normal: ''
+            size_hint: None, None
+            text: 'Etr'
+            id: enter
+            center_x: root.center_x + 100
+            center_y: root.center_y - 240
+            color: 0.019, 0.337, 1, 1
+            size: 80, 80
+            on_press: root.enter_button_down()
+            on_release: root.check_pass()
+            on_touch_up: root.reset_colors()

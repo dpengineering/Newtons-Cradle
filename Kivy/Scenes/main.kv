@@ -1,0 +1,244 @@
+<MyProgressBar>:
+    canvas:
+        Color:
+            rgb: 0.8, 0.8, 0.8
+        RoundedRectangle:
+            pos: self.x, self.y
+            size: self.width, self.height
+        Color:
+            rgb: 0, 0, 1
+        RoundedRectangle:
+            pos: self.x, self.y
+            size: self.width * (self.value / 100.0), self.height
+
+
+<VariableChanger>:
+    label: label
+    Label:
+        id: label
+        text: (root.name if root.name else "???")+ ": " + str(root.get_value())
+        size: 80, 80
+        center_x: root.center_x
+        center_y: root.center_y + 40
+        color: 0.3,0.3,0.3,1
+        font_size: 25
+    DPEAButton:
+        background_normal: ''
+        size_hint: None,None
+        text: "+"
+        size: 80, 80
+        center_x: root.center_x + 40
+        center_y: root.center_y - 80
+        color: 1,0,0,1
+        background_color: 0, 0, 0, 0
+        on_release: root.inc_value()
+    DPEAButton:
+        background_normal: ''
+        size_hint: None,None
+        text: "-"
+        size: 80, 80
+        center_x: root.center_x - 40
+        center_y: root.center_y - 80
+        color: 1,0,0,1
+        background_color: 0, 0, 0, 0
+        on_release: root.dec_value()
+
+
+<Ball>:
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: -self.parent.rotation
+            origin: self.center
+    canvas.after:
+        PopMatrix
+    size: 150, 150
+    on_touch_up: self.released(args[1])
+    on_touch_down: self.pushed(args[1])
+    on_touch_move: self.moved(args[1])
+
+    Image:
+        source: "Kivy/Images/steel_ball_crisp.png"
+        pos: root.pos
+        size: root.size
+
+
+<BallString>:
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: self.rotation
+            origin: self.center
+    canvas:
+        Color:
+            rgb: 0.8, 0.8, 0.8
+        Line:
+            width: 5
+            points: [root.center_x, root.center_y, root.center_x, root.center_y - 400]
+    canvas.after:
+        PopMatrix
+    Ball:
+        id: ball
+        center_x: root.center_x
+        center_y: root.center_y - 400
+
+
+<Cradle>:
+    BallString:
+        name: "left"
+        center_x: root.center_x - 300
+        center_y: root.center_y
+
+    BallString:
+        name: "middle-left"
+        center_x: root.center_x - 150
+        center_y: root.center_y
+
+    BallString:
+        name: "middle"
+        center_x: root.center_x
+        center_y: root.center_y
+
+    BallString:
+        name: "middle-right"
+        center_x: root.center_x + 150
+        center_y: root.center_y
+
+    BallString:
+        name: "right"
+        center_x: root.center_x + 300
+        center_y: root.center_y
+
+
+<MainScreen>:    #start scene with a button and label
+    name: 'main'
+    cradle: cradle
+    execute: execute
+    progress: progress
+    wait: wait
+    hint: hint
+    FloatLayout:
+        size_hint: None, None  #Needed to be able to define define height and width of widgets
+        ################# TITLE #################
+        DPEAButton:
+            id: title
+            background_normal: ''
+            size_hint: None,None
+            text: "Newton's Cradle"
+            size: 700, 100
+            center_x: root.center_x
+            center_y: root.center_y + 310
+            color: 1,1,0,1
+            background_color: 0, 0, 0, 0
+
+        ################# BALLS #################
+
+        Cradle:
+            id: cradle
+            center_x: root.center_x
+            center_y: root.center_y + 250
+
+        ################# EXECUTE #################
+        DPEAButton:
+            id: execute
+            opacity: 0
+            background_normal: ''
+            size_hint: None,None
+            text: 'Start'
+            size: 250, 100
+            center_x: root.width * .50
+            y: root.height * 0.05
+            color: 0,1,0,1
+            background_color: 0, 0, 0, 0
+            on_touch_up: root.update_button()
+            on_release: root.scoop_call_back()
+
+        Label:
+            id: hint
+            opacity: 1
+            y: root.height * 0.05
+            center_x: root.width * .50
+            text: "Tap or Swipe"
+            color: 0.3,0.3,0.3,1
+            font_size: 40
+
+        MyProgressBar:
+            id: progress
+            opacity: 0
+            size_hint: None,None
+            max: 100
+            size: 800, 30
+            center_x: root.width * .50
+            y: root.height * 0.05
+            color: 0,1,0,1
+            background_color: 0, 0, 0, 0
+
+        Label:
+            id: wait
+            opacity: 0
+            y: root.height * 0.05
+            center_x: root.width * .50
+            text: "Please Wait"
+            color: 0.3,0.3,0.3,1
+            font_size: 40
+
+        ################# ADMIN #################
+        Button:
+            size_hint: None,None
+            size: 10, 10
+            font_size: 20
+            background_color: 0.5, 0, 0, 0
+            center: root.width -5, 5
+            on_release: root.admin_action()
+
+
+<adminFunctionsScreen>:
+    name: 'adminFunctionsScreen'
+    FloatLayout:
+        size_hint: None, None
+        VariableChanger:
+            name: "offset_left"
+            size_hint: None,None
+            center_x: root.width * .15
+			center_y: root.height * .85
+        VariableChanger:
+            name: "offset_v_left"
+            size_hint: None,None
+            center_x: root.width * .30
+			center_y: root.height * .85
+        VariableChanger:
+            name: "offset_v_right"
+            size_hint: None,None
+            center_x: root.width * .70
+			center_y: root.height * .85
+        VariableChanger:
+            name: "offset_right"
+            size_hint: None,None
+            center_x: root.width * .85
+			center_y: root.height * .85
+        DPEAButton:
+            size_hint: None,None
+            background_normal: ''
+            text: 'Quit'
+            size: 400, 150
+            color: 1, 0, 0, 1
+            background_color: 0, 0, 0, 0
+            center_x: root.width * .50
+			center_y: root.height * .50
+            on_release: root.quit_action()
+        DPEAButton:
+            size_hint: None, None
+            background_normal: ''
+            text: 'Back'
+            size: 400, 150
+            color: 0, 0, 1, 1
+            background_color:0, 0, 0, 0
+            center_x: root.width * .50
+			center_y: root.height * .25
+            on_release: root.back_action()
+
+
+
+
+
+
