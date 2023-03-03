@@ -63,7 +63,6 @@ MAIN_SCREEN_NAME = 'main'
 
 MIXPANEL_TOKEN = "02f0373e5a3d6354fbc9d41d6b3a002a"
 
-
 """
 DECLARE APP CLASS AND SCREENMANAGER
 LOAD KIVY FILE
@@ -203,6 +202,24 @@ def set_vertical_pos(millimeters):
     dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
 
 
+def set_vertical_pos_right(millimeters):
+    """
+    Set the vertical position of the right vertical stepper
+    :param millimeters: The position of the right vertical stepper
+    :return: None
+    """
+    dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
+
+
+def set_vertical_pos_left(millimeters):
+    """
+    Set the vertical position of the left vertical stepper
+    :param millimeters: The position of the left vertical stepper
+    :return: None
+    """
+    dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, True)
+
+
 def set_horizontal_pos(mm):
     """
     Set the horizontal position of the horizontal steppers
@@ -211,6 +228,24 @@ def set_horizontal_pos(mm):
     """
     dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, False)
     dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
+
+
+def set_horizontal_pos_right(mm):
+    """
+    Set the horizontal position of the right horizontal stepper
+    :param mm: The position of the right horizontal steppers
+    :return: None
+    """
+    dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
+
+
+def set_horizontal_pos_left(mm):
+    """
+    Set the horizontal position of the left horizontal stepper
+    :param mm: The position of the left horizontal steppers
+    :return: None
+    """
+    dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, True)
 
 
 def home():
@@ -243,14 +278,15 @@ def new_scoop():
     num_left = sm.get_screen('main').cradle.num_left()
     num_right = sm.get_screen('main').cradle.num_right()
 
+    stop_balls()
+
     if (num_left + num_right) == 5:
-        grab_five()
-        # change label to inform user of 4 ball limit
+        scoopFiveBalls(num_left, num_right)
+        release_both()
+        home()
         sleep(1)
         sm.get_screen('main').unpause()
     else:
-        stop_balls()
-
         if num_left == 0:
             scoop_right(num_right)
 
@@ -334,6 +370,41 @@ def scoop_right(num):
         dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
 
 
+def scoopFiveBalls(num_left, num_right):
+    """
+    Scoop left side first, then right
+    This is necessary to prevent a collision
+    """
+    p_r = DISTANCE_TO_FIRST_BALL + OFFSET_RIGHT + BALL_DIAMETER * num_right
+    p_l = DISTANCE_TO_FIRST_BALL + BALL_DIAMETER * num_left
+
+    set_horizontal_pos_left(p_l)
+
+    set_vertical_pos_left(LIFT_DISTANCE)
+
+    if num_left == 1:
+        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, False)
+    elif num_left == 2:
+        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, False)
+    elif num_left == 3:
+        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, False)
+    else:
+        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, False)
+
+    set_horizontal_pos_right(p_r)
+
+    set_vertical_pos_right(LIFT_DISTANCE)
+
+    if num_right == 1:
+        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_ONE + OFFSET_RIGHT, True)
+    elif num_right == 2:
+        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_TWO + OFFSET_RIGHT, True)
+    elif num_right == 3:
+        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_THREE + OFFSET_RIGHT, True)
+    else:
+        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
+
+
 def scoop_both(num_left, num_right):
     """
     Scoop both sides
@@ -406,16 +477,6 @@ def release_left():
     dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
 
     speed_reset()
-
-
-def grab_five():
-    """
-    small movement to refresh home when a user selects 5 balls
-    """
-    set_horizontal_pos(15)
-    sleep(1)
-
-    home()
 
 
 def stop_balls():
