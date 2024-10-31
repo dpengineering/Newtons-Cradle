@@ -103,6 +103,7 @@ if not dpiStepper0.initialize():
 dpiStepper0.enableMotors(True)
 dpiStepper1.enableMotors(True)
 
+#Can Change Speed Here
 speed_in_mm_per_sec = 300
 accel_in_mm_per_sec_per_sec = 300
 
@@ -133,6 +134,10 @@ def speed_reset():
     dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
     dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
     dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+    #CHANGE TO FASTER SPEEDS
+
+
+
 
 
 def quit_all():
@@ -179,6 +184,9 @@ def set_vertical_speed(speed_mm_per_sec):
     """
     dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
     dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
+    #MAYBE DIFFERENT SPEEDS... FASTER??
+
+
 
 
 def set_horizontal_speed(speed_mm_per_sec):
@@ -190,6 +198,7 @@ def set_horizontal_speed(speed_mm_per_sec):
     """
     dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
     dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
+    #MAIN SPEED WE WANT TO CHANGE
 
 
 def set_vertical_pos(millimeters):
