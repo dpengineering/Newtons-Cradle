@@ -104,8 +104,12 @@ dpiStepper0.enableMotors(True)
 dpiStepper1.enableMotors(True)
 
 #Can Change Speed Here
-speed_in_mm_per_sec = 300
-accel_in_mm_per_sec_per_sec = 300
+speed_in_mm_per_sec = 325
+accel_in_mm_per_sec_per_sec = 325
+
+#Change Vertical Speed Here
+Vertical_speed_in_mm_per_sec = 325
+Vertical_accel_in_mm_per_sec_per_sec = 375
 
 """
 Initializing the speed, acceleration, and steps for each motor
@@ -116,12 +120,12 @@ dpiStepper1.setStepsPerMillimeter(0, 64)
 dpiStepper1.setStepsPerMillimeter(1, 64)
 dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
 dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
+dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(0, Vertical_accel_in_mm_per_sec_per_sec)
+dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(1, Vertical_accel_in_mm_per_sec_per_sec)
 dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
 dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+dpiStepper1.setSpeedInMillimetersPerSecond(0, Vertical_speed_in_mm_per_sec)
+dpiStepper1.setSpeedInMillimetersPerSecond(1, Vertical_speed_in_mm_per_sec)
 
 """
 Main functions
@@ -132,8 +136,8 @@ def speed_reset():
     """Reset the speeds on each motor to original value"""
     dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
     dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(0, Vertical_speed_in_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(1, Vertical_speed_in_mm_per_sec)
     #CHANGE TO FASTER SPEEDS
 
 
@@ -182,8 +186,8 @@ def set_vertical_speed(speed_mm_per_sec):
     :return: None
     *initialized at 300*
     """
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(1, Vertical_speed_in_mm_per_sec)
+    dpiStepper0.setSpeedInMillimetersPerSecond(1, Vertical_speed_in_mm_per_sec)
     #MAYBE DIFFERENT SPEEDS... FASTER??
 
 
@@ -196,8 +200,8 @@ def set_horizontal_speed(speed_mm_per_sec):
     :return: None
     *initialized at 300*
     """
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
+    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
     #MAIN SPEED WE WANT TO CHANGE
 
 
