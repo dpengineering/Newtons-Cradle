@@ -3,7 +3,7 @@ import time
 import os
 import json
 import logging
-
+import moveBothToHome
 from kivy.app import App
 from kivy.lang import Builder
 from Kivy.Scenes import AdminScreen
@@ -33,6 +33,8 @@ from dpeaDPi.DPiStepper import *
 from time import sleep
 from kivy.logger import Logger
 
+from moveBothToHome import MoveBothToHomeInSteps
+
 Logger.setLevel("DEBUG")
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -58,7 +60,6 @@ YELLOW = .180, 0.188, 0.980, 1
 BLUE = 0.917, 0.796, 0.380, 1
 AWAY_FROM_HOME = 1
 BACK_TO_HOME = -1
-
 MAIN_SCREEN_NAME = 'main'
 
 MIXPANEL_TOKEN = "02f0373e5a3d6354fbc9d41d6b3a002a"
@@ -104,12 +105,12 @@ dpiStepper0.enableMotors(True)
 dpiStepper1.enableMotors(True)
 
 #Can Change Speed Here
-speed_in_mm_per_sec = 325
-accel_in_mm_per_sec_per_sec = 325
+speed_in_mm_per_sec = 300
+accel_in_mm_per_sec_per_sec = 300
 
 #Change Vertical Speed Here
-Vertical_speed_in_mm_per_sec = 325
-Vertical_accel_in_mm_per_sec_per_sec = 375
+Vertical_speed_in_mm_per_sec = 320
+Vertical_accel_in_mm_per_sec_per_sec = 330
 
 """
 Initializing the speed, acceleration, and steps for each motor
@@ -149,6 +150,7 @@ def quit_all():
     home()
     dpiStepper1.enableMotors(False)
     dpiStepper0.enableMotors(False)
+
     print("Exit")
     quit()
 
@@ -260,8 +262,21 @@ def set_horizontal_pos_left(mm):
     """
     dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, True)
 
-
 def home():
+    microstepping = 8
+    speed_steps_per_second = 200 * microstepping
+    directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
+    homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
+    homeMaxDistanceToMoveInSteps = 28000
+    dpiStepper0.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    dpiStepper1.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    dpiStepper0.moveToHomeInSteps(1,directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    dpiStepper1.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    sleep(0.1)
+    speed_reset()
+
+
+def doubleHome():
     """
     Home all the steppers
     :return: None
@@ -271,15 +286,12 @@ def home():
     directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
     homeMaxDistanceToMoveInSteps = 28000
-    dpiStepper1.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper0.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper1.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper0.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
+    MoveBothToHomeInSteps(0, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    MoveBothToHomeInSteps(1, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    sleep(0.1)
+    print("all motors homed")
     speed_reset()
+
 
 
 def new_scoop():
@@ -290,7 +302,7 @@ def new_scoop():
     """
     num_left = sm.get_screen('main').cradle.num_left()
     num_right = sm.get_screen('main').cradle.num_right()
-
+    sm.get_screen('main').disable_all_inputs(True)
     stop_balls()
 
     if (num_left + num_right) == 5:
@@ -509,7 +521,7 @@ def stop_balls():
     set_horizontal_pos(-20)
 
     # reset all cradles
-    home()
+    doubleHome()
 
 
 """
@@ -524,12 +536,14 @@ def pause(text, sec):
     :param sec: Number of seconds to pause the screen for
     :return: None
     """
+    sm.get_screen('main').disable_all_inputs(True)
     sm.transition.direction = 'left'
     sm.current = 'pauseScene'
     sm.current_screen.ids.pauseText.text = text
     load = Animation(size=(10, 10), duration=0) + \
            Animation(size=(150, 10), duration=sec)
     load.start(sm.current_screen.ids.progressBar)
+
 
 
 def transition_back(original_scene):
@@ -541,7 +555,7 @@ def transition_back(original_scene):
     sm.transition.direction = 'right'
     sm.current = original_scene
 
-
+"""""
 def scoop_balls_thread(*largs):
     main = sm.get_screen('main')
 
@@ -561,7 +575,7 @@ def scoop_balls_thread(*largs):
 
 
 sm = ScreenManager()
-
+"""""
 
 class MainScreen(Screen):
     cradle = ObjectProperty(None)
@@ -600,6 +614,7 @@ class MainScreen(Screen):
         MainScreen.fade_in.start(widget)
 
     def pause(self, delay):
+        sm.get_screen('main').disable_all_inputs(True)
         Ball.interactive = False
         self.set_visible(self.wait)
         self.is_paused = True
@@ -610,6 +625,7 @@ class MainScreen(Screen):
         self.is_paused = False
         self.set_visible(self.hint)
 
+
     def update_button(self):
         l = self.cradle.num_left()
         r = self.cradle.num_right()
@@ -618,6 +634,11 @@ class MainScreen(Screen):
             self.set_visible(self.hint)
         else:
             self.set_visible(self.execute)
+
+    def disable_all_inputs(self, x : bool):
+        self.ids.cradle.disabled = x
+        self.ids.execute.disabled = x
+        self.ids.progress.disabled = x
 
 
 class Ball(Widget):
@@ -820,11 +841,12 @@ class adminFunctionsScreen(Screen):
     def quit_action():
         quit_all()
 
+"""""
     @staticmethod
     def back_action():
         home()
         sm.current = 'main'
-
+"""""
 
 sm.add_widget(MainScreen(name='main'))
 sm.add_widget(AdminScreen.AdminScreen(name='admin'))
@@ -838,5 +860,5 @@ if __name__ == "__main__":
     try:
         home()
         MyApp().run()
-    except KeyboardInterrupt:
+    finally:
         quit_all()

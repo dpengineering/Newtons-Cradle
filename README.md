@@ -30,8 +30,15 @@ Quits execution of the program and exits to the desktop
 ### Home
 Homes the steppers and brings transitions back to the main screen
 
+### Double home
+Additional home function which homes both steppers on a motor board simultaneously for increased efficiency, only used after stopBalls() function in order to minimize bugs
 
-## End of year 2023
+### Disable all
+A function used to stop inputs from getting through from the touch screen while motors are running. Before, touching the touch screen while motors were running broke the machine, this function counteracts that.
+
+## End of year 2024
 
 ### Bugs
-After running Newton's Cradle for a while the UI will not update as intended, the cursor will not move but updates the values correctly. The reset widgets method should rn on its own thread or the main thread to guarantee it re draws correctly.
+1. After running Newton's Cradle for a while the UI will not update as intended, the cursor will not move but updates the values correctly. The reset widgets method should rn on its own thread or the main thread to guarantee it re draws correctly.
+2. Scoop_balls_thread function has been commented out due to unclear purpose and causing bugs.  
+3. While the Disable_all fucntion helped, there is still an issue with spamming the touch screen while motors are working.
