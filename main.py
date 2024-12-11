@@ -3,7 +3,7 @@ import time
 import os
 import json
 import logging
-
+import moveBothToHome
 from kivy.app import App
 from kivy.lang import Builder
 from Kivy.Scenes import AdminScreen
