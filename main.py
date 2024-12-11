@@ -555,7 +555,6 @@ def transition_back(original_scene):
     sm.transition.direction = 'right'
     sm.current = original_scene
 
-"""""
 def scoop_balls_thread(*largs):
     main = sm.get_screen('main')
 
@@ -574,8 +573,8 @@ def scoop_balls_thread(*largs):
     Thread(target=new_scoop).start()
 
 
+
 sm = ScreenManager()
-"""""
 
 class MainScreen(Screen):
     cradle = ObjectProperty(None)
@@ -646,11 +645,11 @@ class Ball(Widget):
     down_exists = False
     down = ObjectProperty((0, 0))
 
-    def transform_point(self, v):
-        v -= Vector(self.parent.pos)
-        v = v.rotate(-self.parent.rotation)
-        v += Vector(self.parent.pos)
-        return v
+    def transform_point(self, vec_1):
+        vec_1 -= Vector(self.parent.pos)
+        vec_1 = vec_1.rotate(-self.parent.rotation)
+        vec_1 += Vector(self.parent.pos)
+        return vec_1
 
     def clear(self):
         self.down = (0, 0)
@@ -658,18 +657,18 @@ class Ball(Widget):
 
     def pushed(self, touch):
         pos = touch.pos
-        v = self.transform_point(Vector(pos))
-        if self.collide_point(v.x, v.y) and (not Ball.down_exists) and Ball.interactive:
-            self.down = v
+        vec_1 = self.transform_point(Vector(pos))
+        if self.collide_point(vec_1.x, vec_1.y) and (not Ball.down_exists) and Ball.interactive:
+            self.down = vec_1
             Ball.down_exists = True
 
     def moved(self, touch):
         p = self.parent
         pos = touch.pos
-        v = self.transform_point(Vector(pos))
+        vec_1 = self.transform_point(Vector(pos))
 
         if self.down != (0, 0):
-            d = v - Vector(self.down)
+            d = vec_1 - Vector(self.down)
             if d.length() >= GESTURE_MAX_DELTA:
                 if d.x >= GESTURE_MIN_DELTA:
                     self.parent.parent.ball_right(p)
@@ -681,10 +680,10 @@ class Ball(Widget):
     def released(self, touch):
         p = self.parent
         pos = touch.pos
-        v = self.transform_point(Vector(pos))
+        vec_1 = self.transform_point(Vector(pos))
 
         if self.down != (0, 0):
-            d = v - Vector(self.down)
+            d = vec_1 - Vector(self.down)
             if d.x >= GESTURE_MIN_DELTA:
                 self.parent.parent.ball_right(p)
                 self.clear()
@@ -808,8 +807,8 @@ if os.path.exists("variables.json"):
     with open("variables.json") as o:
         variables_dict = json.loads(o.read())
 
-    for v in variables_dict.keys():
-        globals()[v] = variables_dict[v]
+    for vec_1 in variables_dict.keys():
+        globals()[vec_1] = variables_dict[vec_1]
 
 
 class VariableChanger(Widget):
@@ -858,7 +857,8 @@ mixpanel = MixPanel("Newtons Cradle", MIXPANEL_TOKEN)
 # ////////////////////////////////////////////////////////////////
 if __name__ == "__main__":
     try:
+
         home()
         MyApp().run()
-    finally:
+    except KeyboardInterrupt:
         quit_all()
