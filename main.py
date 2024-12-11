@@ -268,6 +268,21 @@ def home():
                                   homeMaxDistanceToMoveInSteps)
     speed_reset()
 
+def doubleHome():
+    """
+    Home all the steppers
+    :return: None
+    """
+    microstepping = 8
+    speed_steps_per_second = 200 * microstepping
+    directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
+    homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
+    homeMaxDistanceToMoveInSteps = 28000
+    moveBothToHome.MoveBothToHomeInSteps(0, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    moveBothToHome.MoveBothToHomeInSteps(1, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    sleep(0.1)
+    print("all motors homed")
+    speed_reset()
 
 def new_scoop():
     """
@@ -496,7 +511,7 @@ def stop_balls():
     set_horizontal_pos(-20)
 
     # reset all cradles
-    home()
+    doubleHome()
 
 
 """
