@@ -70,19 +70,19 @@ Second time.
             return False
 
         if homeAtHomeSwitchFlg1 == True and Num_Stops_Motor1 == 0:
-            print("Stopping Stepper1")
+            #print("Stopping Stepper1")
             dpiStepper.emergencyStop(stepperNum1)
             sleep(.1)
             Num_Stops_Motor1 = 1
 
         if homeAtHomeSwitchFlg2 == True and Num_Stops_Motor2 == 0:
-            print ("Stopping Stepper2")
+            #print ("Stopping Stepper2")
             dpiStepper.emergencyStop(stepperNum2)
             sleep(.1)
             Num_Stops_Motor2 = 1
 
         if Num_Stops_Motor1 == 1 and Num_Stops_Motor2 == 1:
-            print ("both motors stopped!")
+            #print ("both motors stopped!")
             break
 
     if dpiStepper.moveToRelativePositionInSteps(stepperNum1, -maxDistanceToMoveInSteps1 * directionTowardHome1, False) != True:
@@ -103,18 +103,18 @@ Second time.
             return False
 
         if homeAtHomeSwitchFlg1 != True and Num_Stops_Motor1 == 1:
-            print("Stepper1 out of Range")
+            #print("Stepper1 out of Range")
 
             dpiStepper.emergencyStop(stepperNum1)
             Num_Stops_Motor1 = 2
 
         if homeAtHomeSwitchFlg2 != True and Num_Stops_Motor2 == 1:
-            print("Stepper2 out of Range")
+            #print("Stepper2 out of Range")
             dpiStepper.emergencyStop(stepperNum2)
             Num_Stops_Motor2 = 2
 
         if Num_Stops_Motor2 == 2 and Num_Stops_Motor1 == 2:
-            print ("Both motors rehoming slowly")
+            #print ("Both motors rehoming slowly")
             break
 
     if dpiStepper.setSpeedInStepsPerSecond(stepperNum1, speedInStepsPerSecond1 / 8) != True:
@@ -141,17 +141,17 @@ Second time.
             return False
 
         if homeAtHomeSwitchFlg1 == True and Num_Stops_Motor1 == 2:
-            print("Stopping Stepper1")
+            #print("Stopping Stepper1")
             dpiStepper.emergencyStop(stepperNum1)
             sleep(.1)
             Num_Stops_Motor1 = 3
 
         if homeAtHomeSwitchFlg2 == True and Num_Stops_Motor2 == 2:
-            print("Stopping Stepper2")
+            #print("Stopping Stepper2")
             dpiStepper.emergencyStop(stepperNum2)
             sleep(.1)
             Num_Stops_Motor2 = 3
 
         if Num_Stops_Motor1 == 3 and Num_Stops_Motor2 == 3:
-            print("both motors successfully homed!")
+            #print("both motors successfully homed!")
             break

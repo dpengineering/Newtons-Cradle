@@ -30,8 +30,19 @@ Quits execution of the program and exits to the desktop
 ### Home
 Homes the steppers and brings transitions back to the main screen
 
+### Double Home
+Homes 2 steppers at a time letting each arm home it's vertical and horizontal motor at the same time
 
-## End of year 2023
+### Mother-Function.py file
+This function was used as a fix to a bug which made the motors and UI break after spamming the touch screen, adding a extra file allows for the main function to quit itself before creating a new thread which prevents kivy from breaking due to input overload the function then continuously runs main.py through a while True loop
 
-### Bugs
-After running Newton's Cradle for a while the UI will not update as intended, the cursor will not move but updates the values correctly. The reset widgets method should rn on its own thread or the main thread to guarantee it re draws correctly.
+## End of year 2024
+
+### Bugs Fixed
+I fixed a bug which broke the motors and UI when anybody spammed the screen when the UI was running. There haven't been any errors since that I've noticed.
+
+### Going Forward
+Most additions to the Newton's Cradle project to this point should be stylistic and to make the functions run smoother (QUADRA HOME FUNCTION!?!?), 
+* Please note that use of threading breaks kivy so try to refrain from using Threading in main.py, also threading won't work for moving two motors in unison
+* Possibly main.py could work without Mother-Function if threading is removed, previous software developers used threading as a way to keep the code running without breaking, however it could be possible with enough testing. 
+
