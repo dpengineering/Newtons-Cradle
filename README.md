@@ -36,6 +36,9 @@ Homes 2 steppers at a time letting each arm home it's vertical and horizontal mo
 ### Mother-Function.py file
 This function was used as a fix to a bug which made the motors and UI break after spamming the touch screen, adding a extra file allows for the main function to quit itself before creating a new thread which prevents kivy from breaking due to input overload the function then continuously runs main.py through a while True loop
 
+### admin_quit_all
+After the addition of Mother-Function exiting the home through the admin screen became impossible. I created a new function called admin_quit_all which adds a txt file in the rasberry pi with a key before it quits main.py Mother function then checks for the added file and the key inside, if they are detected Mother-Functions breaks from the while true loop stopping the code and deletes the files in the process.
+
 ## End of year 2024
 
 ### Bugs Fixed

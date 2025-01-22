@@ -148,6 +148,18 @@ def quit_all():
     os.system("clear")
     quit()
 
+def admin_quit_all():
+    """Called upon exiting UI, frees all steppers"""
+    home()
+    dpiStepper1.enableMotors(False)
+    dpiStepper0.enableMotors(False)
+    os.system("clear")
+    with open("exit_key.txt", "w") as file:
+        file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
+        file.close()
+        print("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
+    quit()
+
 
 def are_horizontal_busy():
     """
@@ -888,7 +900,7 @@ class VariableChanger(Widget):
 class adminFunctionsScreen(Screen):
     @staticmethod
     def quit_action():
-        quit_all()
+        admin_quit_all()
 
     @staticmethod
     def back_action():
