@@ -2,10 +2,9 @@ import os
 
 
 if __name__ == "__main__":
-    counter = 0
     key1 = "aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t"
     key_match = None
-    while counter < 2:
+    while True:
         os.system("python3 main.py")
         if os.path.exists("exit_key.txt"):
             with open("exit_key.txt", "r") as file:
@@ -16,7 +15,7 @@ if __name__ == "__main__":
                 break
         else:
             print("Continue")
-            counter += 1
+
 
 
 

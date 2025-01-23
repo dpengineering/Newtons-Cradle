@@ -157,7 +157,6 @@ def admin_quit_all():
     with open("exit_key.txt", "w") as file:
         file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
         file.close()
-        print("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
     quit()
 
 
