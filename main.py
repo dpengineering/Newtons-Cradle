@@ -1,13 +1,15 @@
 #!/usr/bin/python3
 import time
 import os
+os.environ["KIVY_NO_CONSOLELOG"] = "1" #Disables log in messaging on the console when booting up the project
+
 import json
 import logging
-
 from kivy.app import App
 from kivy.lang import Builder
 from Kivy.Scenes import AdminScreen
 from threading import Thread
+from moveBothToHome import MoveBothToHomeInSteps
 from kivy.core.window import Window
 from kivy.properties import AliasProperty, ObjectProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -31,11 +33,13 @@ from pidev.kivy import PauseScreen
 from pidev.MixPanel import MixPanel
 from dpeaDPi.DPiStepper import *
 from time import sleep
-from kivy.logger import Logger
+# from kivy.logger import Logger
 
-Logger.setLevel("DEBUG")
-logging.getLogger().setLevel(logging.DEBUG)
+#Logger.setLevel("DEBUG")
+#logging.getLogger().setLevel(logging.DEBUG)
 
+# os.environ["KIVY_LOG_LEVEL"] = "warning"
+# Config.set("kivy", "log_level", "warning")
 """
 Globals
 """
@@ -140,7 +144,19 @@ def quit_all():
     home()
     dpiStepper1.enableMotors(False)
     dpiStepper0.enableMotors(False)
-    print("Exit")
+    # print("Exit")
+    os.system("clear")
+    quit()
+
+def admin_quit_all():
+    """Called upon exiting UI, frees all steppers"""
+    home()
+    dpiStepper1.enableMotors(False)
+    dpiStepper0.enableMotors(False)
+    os.system("clear")
+    with open("exit_key.txt", "w") as file:
+        file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
+        file.close()
     quit()
 
 
@@ -268,6 +284,21 @@ def home():
                                   homeMaxDistanceToMoveInSteps)
     speed_reset()
 
+def double_Home() :
+    microstepping = 8
+    speed_steps_per_second = 200 * microstepping
+    directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
+    homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
+    homeMaxDistanceToMoveInSteps = 28000
+    MoveBothToHomeInSteps(0, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                                  homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+
+    MoveBothToHomeInSteps(1, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                          homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                          homeMaxDistanceToMoveInSteps)
+
+    speed_reset()
+
 
 def new_scoop():
     """
@@ -275,9 +306,64 @@ def new_scoop():
     Only at the conclusion of this function is the UI is able to resolve interactions
     :return: None
     """
+    Window.close()
+    MyApp.get_running_app().stop()
+    os.system("clear")
+
+    # DO NOT EDIT
+    print("""
+
+
+
+
+
+                                          .-------------------------------------------------------------------------------.
+                                          |  ____    _                                 __        __          _   _     _  |
+                                          | |  _ \  | |   ___    __ _   ___    ___     \ \      / /   __ _  (_) | |_  | | |
+                                          | | |_) | | |  / _ \  / _` | / __|  / _ \     \ \ /\ / /   / _` | | | | __| | | |
+                                          | |  __/  | | |  __/ | (_| | \__ \ |  __/      \ V  V /   | (_| | | | | |_  |_| |
+                                          | |_|     |_|  \___|  \__,_| |___/  \___|       \_/\_/     \__,_| |_|  \__| (_) |
+                                          |                                                                               |
+                                          '-------------------------------------------------------------------------------'
+                                          
+                                                                                      
+                                                          _________________
+                                                         /                /|
+                                                        /                / |
+                                                       /________________/ /|
+                                                    ###|      ____      |//|
+                                                   #   |     /   /|     |/.|
+                                                  #  __|___ /   /.|     |  |_______________
+                                                 #  /      /   //||     |  /              /|                  ___
+                                                #  /      /___// ||     | /              / |                 / \ \*
+                                                # /______/!   || ||_____|/              /  |                /   \ \*
+                                                #| . . .  !   || ||                    /  _________________/     \ \*
+                                                #|  . .   !   || //      ________     /  /\________________  {   /  }
+                                                /|   .    !   ||//~~~~~~/9  ####/    /  / / ______________  {   /  /
+                                               / |        !   |'/      /9  ####/    /  / / /             / {   /  /
+                                              / #\________!___|/      /9  ####/    /  / / /_____________/___  /  /
+                                             / #     /_____\/        /9  ####/    /  / / /_  /\_____________\/  /
+                                            / #                      ``^^^^^^    /   \ \ . ./ / ____________   /
+                                           +=#==================================/     \ \ ./ / /.  .  .  \ /  /
+                                           |#                                   |      \ \/ / /___________/  /
+                                           #                                    |_______\__/________________/
+                                           |                                    |               |  |  / /       
+                                           |                                    |               |  | / /       
+                                           |                                    |       ________|  |/ /________       
+                                           |                                    |      /_______/    \_________/\       
+                                           |                                    |     /        /  /           \ )       
+                                           |                                    |    /OO^^^^^^/  / /^^^^^^^^^OO\)       
+                                           |                                    |            /  / /        
+                                           |                                    |           /  / /
+                                           |                                    |          /___\/
+                                           |                                    |           oo
+                                           |____________________________________|
+      
+      
+        """)
+
     num_left = sm.get_screen('main').cradle.num_left()
     num_right = sm.get_screen('main').cradle.num_right()
-
     stop_balls()
 
     if (num_left + num_right) == 5:
@@ -308,9 +394,9 @@ def new_scoop():
             release_both()
 
         home()
-        sleep(3)
-        sm.get_screen('main').unpause()
-
+        sleep(1)
+        #sm.get_screen('main').unpause()
+        quit_all()
 
 def scoop_left(num):
     """
@@ -496,7 +582,7 @@ def stop_balls():
     set_horizontal_pos(-20)
 
     # reset all cradles
-    home()
+    double_Home()
 
 
 """
@@ -544,7 +630,8 @@ def scoop_balls_thread(*largs):
         return
     main.pause(pause_time)
 
-    Thread(target=new_scoop).start()
+    # Thread(target=new_scoop).start()
+    new_scoop()
 
 
 sm = ScreenManager()
@@ -565,6 +652,13 @@ class MainScreen(Screen):
     @staticmethod
     def admin_action():
         sm.current = 'admin'
+
+    # def close_application(self):
+    #     # closing application
+    #     # App.get_running_app().stop()
+    #     MyApp.
+    #     # removing window
+    #     Window.close()
 
     def scoop_call_back(self):
         Clock.schedule_once(scoop_balls_thread, 0)
@@ -805,7 +899,7 @@ class VariableChanger(Widget):
 class adminFunctionsScreen(Screen):
     @staticmethod
     def quit_action():
-        quit_all()
+        admin_quit_all()
 
     @staticmethod
     def back_action():
@@ -827,3 +921,5 @@ if __name__ == "__main__":
         MyApp().run()
     except KeyboardInterrupt:
         quit_all()
+
+
