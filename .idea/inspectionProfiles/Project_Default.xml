@@ -1,0 +1,38 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="binho-host-adapter" />
+          <option value="certifi" />
+          <option value="charset-normalizer" />
+          <option value="docutils" />
+          <option value="filetype" />
+          <option value="idna" />
+          <option value="Kivy" />
+          <option value="Kivy-Garden" />
+          <option value="pidev" />
+          <option value="pyftdi" />
+          <option value="pygame" />
+          <option value="Pygments" />
+          <option value="pyserial" />
+          <option value="pyusb" />
+          <option value="requests" />
+          <option value="smbus" />
+          <option value="sysv_ipc" />
+          <option value="toml" />
+          <option value="typing_extensions" />
+          <option value="urllib3" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyUnresolvedReferencesInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredIdentifiers">
+        <list>
+          <option value="Gumball_Release" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
