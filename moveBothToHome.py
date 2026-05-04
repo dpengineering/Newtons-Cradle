@@ -1,157 +1,193 @@
-from dpeaDPi.DPiStepper import *
+from dpeaDPi.DPiStepper import DPiStepper
 from time import sleep
 
-dpiStepper = DPiStepper()
+
+def _wait_for_home_state(dpiStepper: DPiStepper, stepperNum: int, target_home_state: bool):
+    for _ in range(100000):
+        results, stoppedFlg, __, homeAtHomeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
+        if results != True:
+            return False
+        if stoppedFlg:
+            return False
+        if homeAtHomeSwitchFlg == target_home_state:
+            return True
+
+    return False
 
 
-def MoveBothToHomeInSteps(boardNum: int, stepperNum1: int, directionTowardHome1: int,
-                speedInStepsPerSecond1: float, maxDistanceToMoveInSteps1: int, stepperNum2: int,
-                directionTowardHome2: int,
-                speedInStepsPerSecond2: float, maxDistanceToMoveInSteps2: int):
-
-    dpiStepper.setBoardNumber(boardNum)
-
-    """
-Num_Stops_Motor variables are used as counters to count the amount of stops each motor has had:
-
-Num_Stops_Motor = 1 means the motor has tripped the home sensor for the first time.
-
-Num_Stops_Motor = 2 means the motor has moved away from the home sensor and no longer trips the sensor.
-
-Num_Stops_Motor = 3 means the motor has moved back towards the home sensor and tripped the home sensor for the 
-Second time.
-    """
-
-    Num_Stops_Motor1 = 0
-    Num_Stops_Motor2 = 0
-    if not ((directionTowardHome1 == 1) or (directionTowardHome1 == -1)):
+def _home_stepper_to_state(dpiStepper: DPiStepper, stepperNum: int, directionTowardHome: int,
+                           maxDistanceToMoveInSteps: int, target_home_state: bool):
+    if dpiStepper.moveToRelativePositionInSteps(
+            stepperNum,
+            maxDistanceToMoveInSteps * directionTowardHome * (1 if target_home_state else -1),
+            False) != True:
         return False
-    if not ((directionTowardHome2 == 1) or (directionTowardHome2 == -1)):
+
+    if not _wait_for_home_state(dpiStepper, stepperNum, target_home_state):
+        return False
+
+    dpiStepper.emergencyStop(stepperNum)
+    sleep(.1)
+    return True
+
+
+def _home_steppers_to_state(dpiStepper: DPiStepper, steppers, target_home_state: bool):
+    """Move the given steppers together and stop each one as soon as its own sensor matches."""
+
+    # Set speeds and accelerations for both motors
+    for stepperNum, directionTowardHome, speedInStepsPerSecond, maxDistanceToMoveInSteps in steppers:
+        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speedInStepsPerSecond) != True:
+            return False
+        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speedInStepsPerSecond) != True:
+            return False
+
+    for stepperNum, directionTowardHome, _, maxDistanceToMoveInSteps in steppers:
+        moveDistance = maxDistanceToMoveInSteps * directionTowardHome
+        if not target_home_state:
+            moveDistance = -moveDistance
+        if dpiStepper.moveToRelativePositionInSteps(stepperNum, moveDistance, False) != True:
+            return False
+
+    stepper_done = {stepperNum: False for stepperNum, _, _, _ in steppers}
+    for _ in range(100000):
+        for stepperNum, _, _, _ in steppers:
+            results, stoppedFlg, __, homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
+            if results != True:
+                return False
+
+            if not stepper_done[stepperNum]:
+                if homeSwitchFlg == target_home_state:
+                    dpiStepper.emergencyStop(stepperNum)
+                    sleep(.1)
+                    stepper_done[stepperNum] = True
+                elif stoppedFlg:
+                    return False
+
+        if all(stepper_done.values()):
+            return True
+
+    return False
+
+
+def moveToHomeInSteps(dpiStepper: DPiStepper, stepperNum: int, directionTowardHome: int,
+                        speedInStepsPerSecond: float, maxDistanceToMoveInSteps: int):
+    if (stepperNum < 0) or (stepperNum > 1):
+        return False
+
+    if not ((directionTowardHome == 1) or (directionTowardHome == -1)):
         return False
 
     if dpiStepper.enableMotors(True) != True:
         return False
 
-    if dpiStepper.setSpeedInStepsPerSecond(stepperNum1, speedInStepsPerSecond1) != True:
+    results, _ , _, homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
+    if results != True:
         return False
-    if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum1, speedInStepsPerSecond1) != True:
-        return False
-    if dpiStepper.setSpeedInStepsPerSecond(stepperNum2, speedInStepsPerSecond2) != True:
-        return False
-    if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum2, speedInStepsPerSecond2) != True:
-        return False
+    
+    steppers_normal = [(stepperNum, directionTowardHome, speedInStepsPerSecond, maxDistanceToMoveInSteps)]
+    steppers_slow = [(stepperNum, directionTowardHome, speedInStepsPerSecond / 8, maxDistanceToMoveInSteps)]
 
-    results1, stoppedFlg1, ___, homeAtHomeSwitchFlg1 = dpiStepper.getStepperStatus(stepperNum1)
-    results2, stoppedFlg2, __, homeAtHomeSwitchFlg2 = dpiStepper.getStepperStatus(stepperNum2)
-    if results1 != True:
-        return False
-    if results2 != True:
-        return False
-
-    if homeAtHomeSwitchFlg1 != True or homeAtHomeSwitchFlg2 != True:
-        #
-        # move toward the home switch
-        #
-        if dpiStepper.moveToRelativePositionInSteps(stepperNum2, maxDistanceToMoveInSteps2 * directionTowardHome2, False) != True:
-            return False
-        if dpiStepper.moveToRelativePositionInSteps(stepperNum1, maxDistanceToMoveInSteps1 * directionTowardHome1, False) != True:
+    # Phase 1: move toward home until the motor hits its sensor.
+    if homeSwitchFlg != True:
+        if not _home_steppers_to_state(dpiStepper,steppers_normal,True):
             return False
 
-    while True:
-        results1, stoppedFlg1, ___, homeAtHomeSwitchFlg1 = dpiStepper.getStepperStatus(stepperNum1)
-        results2, stoppedFlg2, __, homeAtHomeSwitchFlg2 = dpiStepper.getStepperStatus(stepperNum2)
-        if results1 != True:
-            return False
-        if stoppedFlg1 and Num_Stops_Motor1 == 0:
-            return False
-        if results2 != True:
-            return False
-        if stoppedFlg2 and Num_Stops_Motor2 == 0:
-            return False
-
-        if homeAtHomeSwitchFlg1 == True and Num_Stops_Motor1 == 0:
-            #print("Stopping Stepper1")
-            dpiStepper.emergencyStop(stepperNum1)
-            sleep(.1)
-            Num_Stops_Motor1 = 1
-
-        if homeAtHomeSwitchFlg2 == True and Num_Stops_Motor2 == 0:
-            #print ("Stopping Stepper2")
-            dpiStepper.emergencyStop(stepperNum2)
-            sleep(.1)
-            Num_Stops_Motor2 = 1
-
-        if Num_Stops_Motor1 == 1 and Num_Stops_Motor2 == 1:
-            #print ("both motors stopped!")
-            break
-
-    if dpiStepper.moveToRelativePositionInSteps(stepperNum1, -maxDistanceToMoveInSteps1 * directionTowardHome1, False) != True:
-        return False
-    if dpiStepper.moveToRelativePositionInSteps(stepperNum2, -maxDistanceToMoveInSteps2 * directionTowardHome2, False) != True:
+    # Phase 2: move away from home until the motor leaves its sensor (False = not touching sensor, True = touching sensor).
+    if not _home_steppers_to_state(dpiStepper,steppers_normal,False):
         return False
 
-    while True:
-        results1, stoppedFlg1, ___, homeAtHomeSwitchFlg1 = dpiStepper.getStepperStatus(stepperNum1)
-        results2, stoppedFlg2, __, homeAtHomeSwitchFlg2 = dpiStepper.getStepperStatus(stepperNum2)
-        if results1 != True:
-            return False
-        if stoppedFlg1 and Num_Stops_Motor1 == 1:
-            return False
-        if results2 != True:
-            return False
-        if stoppedFlg2 and Num_Stops_Motor2 == 1:
-            return False
-
-        if homeAtHomeSwitchFlg1 != True and Num_Stops_Motor1 == 1:
-            #print("Stepper1 out of Range")
-
-            dpiStepper.emergencyStop(stepperNum1)
-            Num_Stops_Motor1 = 2
-
-        if homeAtHomeSwitchFlg2 != True and Num_Stops_Motor2 == 1:
-            #print("Stepper2 out of Range")
-            dpiStepper.emergencyStop(stepperNum2)
-            Num_Stops_Motor2 = 2
-
-        if Num_Stops_Motor2 == 2 and Num_Stops_Motor1 == 2:
-            #print ("Both motors rehoming slowly")
-            break
-
-    if dpiStepper.setSpeedInStepsPerSecond(stepperNum1, speedInStepsPerSecond1 / 8) != True:
+    # Phase 3: move slowly back toward home and stop on contact.
+    if not _home_steppers_to_state(dpiStepper,steppers_slow,True):
         return False
-    if dpiStepper.moveToRelativePositionInSteps(stepperNum1, maxDistanceToMoveInSteps1 * directionTowardHome1, False) != True:
+    
+    # reset speed and position
+    for stepperNum, _, speed, _ in steppers_normal:
+        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed) != True:
+            return False
+        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed) != True:
+            return False
+        if dpiStepper.setCurrentPositionInSteps(stepperNum, 0) != True:
+            return False
+
+    return True
+
+def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
+                speedInStepsPerSecond0: float, maxDistanceToMoveInSteps0: int,
+                directionTowardHome1: int, speedInStepsPerSecond1: float, maxDistanceToMoveInSteps1: int):
+    """
+    Home two steppers in parallel.
+    """
+    
+    # Validate inputs
+    if not ((directionTowardHome0 == 1) or (directionTowardHome0 == -1)):
+        return False
+    if not ((directionTowardHome1 == 1) or (directionTowardHome1 == -1)):
+        return False
+    
+    if dpiStepper.enableMotors(True) != True:
+        return False
+    
+    
+    steppers_normal = [
+                (0, directionTowardHome0, speedInStepsPerSecond0, maxDistanceToMoveInSteps0),
+                (1, directionTowardHome1, speedInStepsPerSecond1, maxDistanceToMoveInSteps1)
+                ]
+    
+    steppers_slow = [
+                (0, directionTowardHome0, speedInStepsPerSecond0 / 8, maxDistanceToMoveInSteps0),
+                (1, directionTowardHome1, speedInStepsPerSecond1 / 8, maxDistanceToMoveInSteps1)
+                ]
+    
+    
+    # Phase 1: move toward home until each motor individually hits its sensor.
+    results0, _, _, home0 = dpiStepper.getStepperStatus(0)
+    results1, _, _, home1 = dpiStepper.getStepperStatus(1)
+    if results0 != True or results1 != True:
         return False
 
-    if dpiStepper.setSpeedInStepsPerSecond(stepperNum2, speedInStepsPerSecond2 / 8) != True:
+    if home0 != True or home1 != True:
+        if not _home_steppers_to_state(dpiStepper, steppers_normal, True):
+            return False
+
+    # Phase 2: move away from home until each motor individually leaves its sensor.
+    if not _home_steppers_to_state(dpiStepper, steppers_normal, False):
         return False
-    if dpiStepper.moveToRelativePositionInSteps(stepperNum2, maxDistanceToMoveInSteps2 * directionTowardHome2,False) != True:
+
+    # Phase 3: move slowly back toward home and stop each motor on contact.
+    if not _home_steppers_to_state(dpiStepper, steppers_slow, True):
         return False
 
-
-    while True:
-        results1, stoppedFlg1, ___, homeAtHomeSwitchFlg1 = dpiStepper.getStepperStatus(stepperNum1)
-        results2, stoppedFlg2, __, homeAtHomeSwitchFlg2 = dpiStepper.getStepperStatus(stepperNum2)
-        if results1 != True:
+    # reset speed and position
+    for stepperNum, _, speed, _ in steppers_normal:
+        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed) != True:
             return False
-        if stoppedFlg1 and Num_Stops_Motor1 == 2:
+        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed) != True:
             return False
-        if results2 != True:
+        if dpiStepper.setCurrentPositionInSteps(stepperNum, 0) != True:
             return False
-        if stoppedFlg2 and Num_Stops_Motor2 == 2:
-            return False
+    
+    return True
 
-        if homeAtHomeSwitchFlg1 == True and Num_Stops_Motor1 == 2:
-            #print("Stopping Stepper1")
-            dpiStepper.emergencyStop(stepperNum1)
-            sleep(.1)
-            Num_Stops_Motor1 = 3
 
-        if homeAtHomeSwitchFlg2 == True and Num_Stops_Motor2 == 2:
-            #print("Stopping Stepper2")
-            dpiStepper.emergencyStop(stepperNum2)
-            sleep(.1)
-            Num_Stops_Motor2 = 3
+if __name__ == "__main__":
+    dpiStepper = DPiStepper()
+    dpiStepper.setBoardNumber(0)
+    if dpiStepper.initialize() != True:
+        print("Communication with the DPiStepper board failed.")
 
-        if Num_Stops_Motor1 == 3 and Num_Stops_Motor2 == 3:
-            #print("both motors successfully homed!")
-            break
+    dpiStepper.enableMotors(True)
+
+    microstepping = 8
+    dpiStepper.setMicrostepping(microstepping)
+
+    speed_steps_per_second = 200 * microstepping
+    accel_steps_per_second_per_second = speed_steps_per_second
+    dpiStepper.setSpeedInStepsPerSecond(0, speed_steps_per_second)
+    dpiStepper.setSpeedInStepsPerSecond(1, speed_steps_per_second)
+    dpiStepper.setAccelerationInStepsPerSecondPerSecond(0, accel_steps_per_second_per_second)
+    dpiStepper.setAccelerationInStepsPerSecondPerSecond(1, accel_steps_per_second_per_second)
+    
+    try:
+        moveBothToHomeInSteps(dpiStepper, 0, 0, 1, 200, 10000, 1, 1, 200, 10000)
+    finally:
+        dpiStepper.enableMotors(False)
