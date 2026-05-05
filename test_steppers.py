@@ -13,8 +13,14 @@ def print_menu():
     print("  double_home      - double_home()")
     print("  status           - print basic status of steppers")
     print("  move_h <mm>      - move both horizontals by mm")
+    print("  move_right <mm>    - move right horizontal by mm")
+    print("  move_left <mm>     - move left horizontal by mm")
     print("  move_v <mm>      - move both verticals by mm")
     print("  quit             - exit")
+    print(" --------- User Commands --------- ")
+    print("  reset_scoops            - reset positions to 0")
+    print("  reset_balls             - reset balls to initial position")
+    print("  scoop <num_l> <num_r>   - scoop num_left and num_right balls")
 
 
 def safe_call(fn, *a, **k):
@@ -44,6 +50,17 @@ def main():
             hardware.dpiStepper1.enableMotors(False)
             hardware.dpiStepper0.enableMotors(False)
             break
+        elif c == 'reset_scoops':
+            safe_call(hardware.back_to_home)
+        elif c == 'reset_balls':
+            safe_call(hardware.stop_balls)
+        elif c == 'scoop' and len(cmd) == 3:
+            try:
+                num_left = int(cmd[1])
+                num_right = int(cmd[2])
+                safe_call(hardware.scoop_both, num_left, num_right)
+            except ValueError:
+                print('Invalid numbers')
         elif c == 'home' and len(cmd) == 2:
             try:
                 board_num = int(cmd[1])
@@ -70,6 +87,18 @@ def main():
             try:
                 mm = float(cmd[1])
                 safe_call(hardware.set_vertical_pos, mm)
+            except ValueError:
+                print('Invalid number')
+        elif c == 'move_right' and len(cmd) == 2:
+            try:
+                mm = float(cmd[1])
+                safe_call(hardware.set_horizontal_pos_right, mm)
+            except ValueError:
+                print('Invalid number')
+        elif c == 'move_left' and len(cmd) == 2:
+            try:
+                mm = float(cmd[1])
+                safe_call(hardware.set_horizontal_pos_left, mm)
             except ValueError:
                 print('Invalid number')
         else:
