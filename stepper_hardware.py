@@ -49,25 +49,19 @@ def init_hardware():
     speed_in_mm_per_sec = 300
     accel_in_mm_per_sec_per_sec = 300
 
-    dpiStepper0.setStepsPerMillimeter(0, 64)
-    dpiStepper0.setStepsPerMillimeter(1, 64)
-    dpiStepper1.setStepsPerMillimeter(0, 64)
-    dpiStepper1.setStepsPerMillimeter(1, 64)
-    dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-    dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-    dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-    dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+    for board in [dpiStepper0, dpiStepper1]:
+        board.setStepsPerMillimeter(0, 64)
+        board.setStepsPerMillimeter(1, 64)
+        board.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
+        board.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
+        board.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
+        board.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
 
 
 def speed_reset():
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+    for board in [dpiStepper0, dpiStepper1]:
+        board.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
+        board.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
 
 
 def quit_all():
@@ -90,55 +84,59 @@ def admin_quit_all():
 
 
 def are_horizontal_busy():
-    b1, rhs, b3, b4 = dpiStepper0.getStepperStatus(0)
-    g1, lhs, g3, g4 = dpiStepper1.getStepperStatus(0)
-    if lhs and rhs is True:
-        return False
-    return True
+    _, right_h_stopped, _, _ = dpiStepper0.getStepperStatus(0)
+    _, left_h_stopped, _, _ = dpiStepper1.getStepperStatus(0)
+    return not (left_h_stopped and right_h_stopped)
 
 
 def are_vertical_busy():
-    b1, rhs, b3, b4 = dpiStepper0.getStepperStatus(1)
-    g1, lhs, g3, g4 = dpiStepper1.getStepperStatus(1)
-    if lhs and rhs is True:
-        return False
-    return True
+    _, right_v_stopped, _, _ = dpiStepper0.getStepperStatus(1)
+    _, left_v_stopped, _, _ = dpiStepper1.getStepperStatus(1)
+    return not (left_v_stopped and right_v_stopped)
 
 
 def set_vertical_speed(speed_mm_per_sec):
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
     dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
 
 
 def set_horizontal_speed(speed_mm_per_sec):
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
     dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
+    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
 
 
-def set_vertical_pos(millimeters):
-    dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, False)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
+def set_vertical_pos(mm):
+    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, False)
+    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True)
 
 
-def set_vertical_pos_right(millimeters):
-    dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
+def set_vertical_pos_right(mm):
+    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, True)
 
 
-def set_vertical_pos_left(millimeters):
-    dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, True)
+def set_vertical_pos_left(mm):
+    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True)
 
 
 def set_horizontal_pos(mm):
-    dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, False)
-    dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
-
+    dpiStepper0.moveToAbsolutePositionInMillimeters(0, mm + 15, False)
+    dpiStepper1.moveToAbsolutePositionInMillimeters(0, mm - 3, True)
+    
 
 def set_horizontal_pos_right(mm):
-    dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
+    dpiStepper0.moveToAbsolutePositionInMillimeters(0, mm + 15, True)
 
 
 def set_horizontal_pos_left(mm):
-    dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, True)
+    dpiStepper1.moveToAbsolutePositionInMillimeters(0, mm - 3, True)
+
+def back_to_home():
+    # Vertical first to avoid hitting the cradle on the way back
+    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, False)
+    dpiStepper1.moveToAbsolutePositionInSteps(0, 0, True)
+
+    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, False)
+    dpiStepper1.moveToAbsolutePositionInSteps(0, 0, True)
 
 
 def home(board=0):
@@ -160,7 +158,7 @@ def home(board=0):
     speed_reset()
 
 
-def double_Home():
+def double_home():
     microstepping = 8
     speed_steps_per_second = 200 * microstepping
     directionToMoveTowardHome = BACK_TO_HOME
@@ -179,20 +177,19 @@ def double_Home():
 
 def release_both():
     set_vertical_speed(200)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, False)
-    dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
+    set_vertical_pos(-1 * LIFT_DISTANCE)
     speed_reset()
 
 
 def release_right():
     set_vertical_speed(200)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
+    set_vertical_pos_right(-1 * LIFT_DISTANCE)
     speed_reset()
 
 
 def release_left():
     set_vertical_speed(200)
-    dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
+    set_vertical_pos_left(-1 * LIFT_DISTANCE)
     speed_reset()
 
 
@@ -202,4 +199,4 @@ def stop_balls():
     set_horizontal_pos(115)
     sleep(2)
     set_horizontal_pos(-20)
-    double_Home()
+    double_home()

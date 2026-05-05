@@ -9,7 +9,6 @@ from kivy.app import App
 from kivy.lang import Builder
 from Kivy.Scenes import AdminScreen
 from threading import Thread
-from moveBothToHome import MoveBothToHomeInSteps
 from kivy.core.window import Window
 from kivy.properties import AliasProperty, ObjectProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -28,10 +27,21 @@ from kivy.animation import Animation
 from functools import partial
 from kivy.config import Config
 from kivy.core.window import Window
-from pidev.kivy import DPEAButton
-from pidev.kivy import PauseScreen
-from pidev.MixPanel import MixPanel
-from dpeaDPi.DPiStepper import *
+try:
+    from pidev.kivy import DPEAButton
+    from pidev.kivy import PauseScreen
+    from pidev.MixPanel import MixPanel
+except ImportError:
+    DPEAButton = Button
+
+    class PauseScreen(Widget):
+        pass
+
+    class MixPanel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+from stepper_hardware import *
 from time import sleep
 # from kivy.logger import Logger
 
@@ -91,277 +101,12 @@ Window.clearcolor = (.9, .9, .9, 1)  # (OFF WHITE)
 """
 Hardware Setup
 """
-
-dpiStepper0 = DPiStepper()
-dpiStepper1 = DPiStepper()
-
-dpiStepper0.setBoardNumber(0)
-dpiStepper1.setBoardNumber(1)
-
-if not dpiStepper1.initialize():
-    print("Communication with the DPiStepper board 1 failed.")
-sleep(1)
-if not dpiStepper0.initialize():
-    print("Communication with the DPiStepper board 0 failed.")
-
-dpiStepper0.enableMotors(True)
-dpiStepper1.enableMotors(True)
-
-speed_in_mm_per_sec = 300
-accel_in_mm_per_sec_per_sec = 300
-
-"""
-Initializing the speed, acceleration, and steps for each motor
-"""
-dpiStepper0.setStepsPerMillimeter(0, 64)
-dpiStepper0.setStepsPerMillimeter(1, 64)
-dpiStepper1.setStepsPerMillimeter(0, 64)
-dpiStepper1.setStepsPerMillimeter(1, 64)
-dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-dpiStepper0.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-dpiStepper1.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-
-"""
-Main functions
-"""
-
-
-def speed_reset():
-    """Reset the speeds on each motor to original value"""
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
-
-
-def quit_all():
-    """Called upon exiting UI, frees all steppers"""
-    home()
-    dpiStepper1.enableMotors(False)
-    dpiStepper0.enableMotors(False)
-    # print("Exit")
-    os.system("clear")
-    quit()
-
-def admin_quit_all():
-    """Called upon exiting UI, frees all steppers"""
-    home()
-    dpiStepper1.enableMotors(False)
-    dpiStepper0.enableMotors(False)
-    os.system("clear")
-    with open("exit_key.txt", "w") as file:
-        file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
-        file.close()
-    quit()
-
-
-def are_horizontal_busy():
-    """
-    Check to see if the horizontal steppers are busy
-    :return: True if busy, False if not
-    """
-    b1, rhs, b3, b4 = dpiStepper0.getStepperStatus(0)
-    g1, lhs, g3, g4 = dpiStepper1.getStepperStatus(0)
-    if lhs and rhs is True:
-        return False
-    else:
-        return True
-
-
-def are_vertical_busy():
-    """
-    Check to see if the vertical steppers are busy
-    :return: True if busy, False if not
-    """
-    b1, rhs, b3, b4 = dpiStepper0.getStepperStatus(1)
-    g1, lhs, g3, g4 = dpiStepper1.getStepperStatus(1)
-    if lhs and rhs is True:
-        return False
-    else:
-        return True
-
-
-def set_vertical_speed(speed_mm_per_sec):
-    """
-    Set the speed of the vertical steppers
-    :param speed_mm_per_sec: Speed to set the vertical steppers as
-    :return: None
-    *initialized at 300*
-    """
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
-
-
-def set_horizontal_speed(speed_mm_per_sec):
-    """
-    Set the speed of the horizontal steppers
-    :param speed_mm_per_sec: Speed to set the vertical steppers as
-    :return: None
-    *initialized at 300*
-    """
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
-
-
-def set_vertical_pos(millimeters):
-    """
-    Set the vertical position of the vertical steppers
-    :param millimeters: The position of the vertical steppers
-    :return: None
-    """
-    dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, False)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
-
-
-def set_vertical_pos_right(millimeters):
-    """
-    Set the vertical position of the right vertical stepper
-    :param millimeters: The position of the right vertical stepper
-    :return: None
-    """
-    dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
-
-
-def set_vertical_pos_left(millimeters):
-    """
-    Set the vertical position of the left vertical stepper
-    :param millimeters: The position of the left vertical stepper
-    :return: None
-    """
-    dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, True)
-
-
-def set_horizontal_pos(mm):
-    """
-    Set the horizontal position of the horizontal steppers
-    :param mm: The position of the horizontal steppers
-    :return: None
-    """
-    dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, False)
-    dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
-
-
-def set_horizontal_pos_right(mm):
-    """
-    Set the horizontal position of the right horizontal stepper
-    :param mm: The position of the right horizontal steppers
-    :return: None
-    """
-    dpiStepper0.moveToRelativePositionInMillimeters(0, mm + 15, True)
-
-
-def set_horizontal_pos_left(mm):
-    """
-    Set the horizontal position of the left horizontal stepper
-    :param mm: The position of the left horizontal steppers
-    :return: None
-    """
-    dpiStepper1.moveToRelativePositionInMillimeters(0, mm - 3, True)
-
-
-def home():
-    """
-    Home all the steppers
-    :return: None
-    """
-    microstepping = 8
-    speed_steps_per_second = 200 * microstepping
-    directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
-    homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
-    homeMaxDistanceToMoveInSteps = 28000
-    dpiStepper1.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper0.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper1.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    dpiStepper0.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps)
-    speed_reset()
-
-def double_Home() :
-    microstepping = 8
-    speed_steps_per_second = 200 * microstepping
-    directionToMoveTowardHome = BACK_TO_HOME  # 1 Positive Direction -1 Negative Direction
-    homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
-    homeMaxDistanceToMoveInSteps = 28000
-    MoveBothToHomeInSteps(0, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                  homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
-
-    MoveBothToHomeInSteps(1, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                          homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                          homeMaxDistanceToMoveInSteps)
-
-    speed_reset()
-
-
 def new_scoop():
     """
     New scooped initiated, gets the number of balls on each side and calls the perspective function to control pickups
     Only at the conclusion of this function is the UI is able to resolve interactions
     :return: None
     """
-    Window.close()
-    MyApp.get_running_app().stop()
-    os.system("clear")
-
-    # DO NOT EDIT
-    print("""
-
-
-
-
-
-                                          .-------------------------------------------------------------------------------.
-                                          |  ____    _                                 __        __          _   _     _  |
-                                          | |  _ \  | |   ___    __ _   ___    ___     \ \      / /   __ _  (_) | |_  | | |
-                                          | | |_) | | |  / _ \  / _` | / __|  / _ \     \ \ /\ / /   / _` | | | | __| | | |
-                                          | |  __/  | | |  __/ | (_| | \__ \ |  __/      \ V  V /   | (_| | | | | |_  |_| |
-                                          | |_|     |_|  \___|  \__,_| |___/  \___|       \_/\_/     \__,_| |_|  \__| (_) |
-                                          |                                                                               |
-                                          '-------------------------------------------------------------------------------'
-                                          
-                                                                                      
-                                                          _________________
-                                                         /                /|
-                                                        /                / |
-                                                       /________________/ /|
-                                                    ###|      ____      |//|
-                                                   #   |     /   /|     |/.|
-                                                  #  __|___ /   /.|     |  |_______________
-                                                 #  /      /   //||     |  /              /|                  ___
-                                                #  /      /___// ||     | /              / |                 / \ \*
-                                                # /______/!   || ||_____|/              /  |                /   \ \*
-                                                #| . . .  !   || ||                    /  _________________/     \ \*
-                                                #|  . .   !   || //      ________     /  /\________________  {   /  }
-                                                /|   .    !   ||//~~~~~~/9  ####/    /  / / ______________  {   /  /
-                                               / |        !   |'/      /9  ####/    /  / / /             / {   /  /
-                                              / #\________!___|/      /9  ####/    /  / / /_____________/___  /  /
-                                             / #     /_____\/        /9  ####/    /  / / /_  /\_____________\/  /
-                                            / #                      ``^^^^^^    /   \ \ . ./ / ____________   /
-                                           +=#==================================/     \ \ ./ / /.  .  .  \ /  /
-                                           |#                                   |      \ \/ / /___________/  /
-                                           #                                    |_______\__/________________/
-                                           |                                    |               |  |  / /       
-                                           |                                    |               |  | / /       
-                                           |                                    |       ________|  |/ /________       
-                                           |                                    |      /_______/    \_________/\       
-                                           |                                    |     /        /  /           \ )       
-                                           |                                    |    /OO^^^^^^/  / /^^^^^^^^^OO\)       
-                                           |                                    |            /  / /        
-                                           |                                    |           /  / /
-                                           |                                    |          /___\/
-                                           |                                    |           oo
-                                           |____________________________________|
-      
-      
-        """)
-
     num_left = sm.get_screen('main').cradle.num_left()
     num_right = sm.get_screen('main').cradle.num_right()
     stop_balls()
@@ -369,7 +114,7 @@ def new_scoop():
     if (num_left + num_right) == 5:
         scoopFiveBalls(num_left, num_right)
         release_both()
-        home()
+        back_to_home()
         sleep(1)
         sm.get_screen('main').unpause()
     else:
@@ -393,10 +138,10 @@ def new_scoop():
             scoop_both(num_left, num_right)
             release_both()
 
-        home()
+        back_to_home()
         sleep(1)
         #sm.get_screen('main').unpause()
-        quit_all()
+        #quit_all()
 
 def scoop_left(num):
     """
@@ -582,7 +327,7 @@ def stop_balls():
     set_horizontal_pos(-20)
 
     # reset all cradles
-    double_Home()
+    double_home()
 
 
 """
@@ -903,7 +648,7 @@ class adminFunctionsScreen(Screen):
 
     @staticmethod
     def back_action():
-        home()
+        double_home()
         sm.current = 'main'
 
 
@@ -917,7 +662,8 @@ mixpanel = MixPanel("Newtons Cradle", MIXPANEL_TOKEN)
 # ////////////////////////////////////////////////////////////////
 if __name__ == "__main__":
     try:
-        home()
+        init_hardware()
+        double_home()
         MyApp().run()
     except KeyboardInterrupt:
         quit_all()

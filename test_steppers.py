@@ -10,7 +10,7 @@ def print_menu():
     print("\nDPiStepper Test CLI")
     print("Commands:")
     print("  home <board>     - home steppers on specified board (0 or 1)")
-    print("  double_home      - double_Home()")
+    print("  double_home      - double_home()")
     print("  status           - print basic status of steppers")
     print("  move_h <mm>      - move both horizontals by mm")
     print("  move_v <mm>      - move both verticals by mm")
@@ -51,7 +51,7 @@ def main():
             except ValueError:
                 print('Invalid board number')
         elif c == 'double_home':
-            safe_call(hardware.double_Home)
+            safe_call(hardware.double_home)
         elif c == 'status':
             try:
                 b1 = hardware.dpiStepper0.getStepperStatus(0)

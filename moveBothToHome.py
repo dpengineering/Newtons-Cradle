@@ -71,6 +71,10 @@ def _home_steppers_to_state(dpiStepper: DPiStepper, steppers, target_home_state:
 
 def moveToHomeInSteps(dpiStepper: DPiStepper, stepperNum: int, directionTowardHome: int,
                         speedInStepsPerSecond: float, maxDistanceToMoveInSteps: int):
+    
+    steppers_normal = [(stepperNum, directionTowardHome, speedInStepsPerSecond, maxDistanceToMoveInSteps)]
+    steppers_slow = [(stepperNum, directionTowardHome, speedInStepsPerSecond / 8, maxDistanceToMoveInSteps)]
+
     if (stepperNum < 0) or (stepperNum > 1):
         return False
 
@@ -84,9 +88,6 @@ def moveToHomeInSteps(dpiStepper: DPiStepper, stepperNum: int, directionTowardHo
     if results != True:
         return False
     
-    steppers_normal = [(stepperNum, directionTowardHome, speedInStepsPerSecond, maxDistanceToMoveInSteps)]
-    steppers_slow = [(stepperNum, directionTowardHome, speedInStepsPerSecond / 8, maxDistanceToMoveInSteps)]
-
     # Phase 1: move toward home until the motor hits its sensor.
     if homeSwitchFlg != True:
         if not _home_steppers_to_state(dpiStepper,steppers_normal,True):
@@ -117,17 +118,8 @@ def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
     """
     Home two steppers in parallel.
     """
-    
-    # Validate inputs
-    if not ((directionTowardHome0 == 1) or (directionTowardHome0 == -1)):
-        return False
-    if not ((directionTowardHome1 == 1) or (directionTowardHome1 == -1)):
-        return False
-    
-    if dpiStepper.enableMotors(True) != True:
-        return False
-    
-    
+
+    # Stepper lists to reference for each phase of the homing process.
     steppers_normal = [
                 (0, directionTowardHome0, speedInStepsPerSecond0, maxDistanceToMoveInSteps0),
                 (1, directionTowardHome1, speedInStepsPerSecond1, maxDistanceToMoveInSteps1)
@@ -138,13 +130,19 @@ def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
                 (1, directionTowardHome1, speedInStepsPerSecond1 / 8, maxDistanceToMoveInSteps1)
                 ]
     
+    for _, directionTowardHome, _, _ in steppers_normal:
+        if not ((directionTowardHome == 1) or (directionTowardHome == -1)):
+            return False
     
-    # Phase 1: move toward home until each motor individually hits its sensor.
+    if dpiStepper.enableMotors(True) != True:
+        return False
+    
     results0, _, _, home0 = dpiStepper.getStepperStatus(0)
     results1, _, _, home1 = dpiStepper.getStepperStatus(1)
     if results0 != True or results1 != True:
         return False
-
+    
+    # Phase 1: move toward home until each motor individually hits its sensor.
     if home0 != True or home1 != True:
         if not _home_steppers_to_state(dpiStepper, steppers_normal, True):
             return False
