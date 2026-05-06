@@ -12,7 +12,7 @@ machine = Machine()
 class LoadingScreen(Screen):
     SCOOP_LEFT = -1
     SCOOP_RIGHT = -1
-    timeout = 20
+    timeout = 30
 
     def on_enter(self):
         #YOU MIGHT HAVE TO MOVE THIS TO MACHINE.PY
@@ -20,8 +20,8 @@ class LoadingScreen(Screen):
                                         daemon=False)
         load_thread = threading.Thread(target=self.loading_animation, daemon=True)
 
-        if self.SCOOP_LEFT + self.SCOOP_RIGHT == 5:
-            self.timeout = 30
+        # if self.SCOOP_LEFT + self.SCOOP_RIGHT == 5:
+        #     self.timeout = 30
 
         print(self.timeout)
 

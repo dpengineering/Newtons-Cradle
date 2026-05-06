@@ -327,9 +327,6 @@ class Machine:
 
         self.set_horizontal_pos_left(p_l)
 
-        while self.are_horizontal_busy():
-            continue
-
         self.set_vertical_pos_left(LIFT_DISTANCE)
 
         if num_left == 1:
@@ -342,9 +339,6 @@ class Machine:
             self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, False)
 
         self.set_horizontal_pos_right(p_r)
-
-        while self.are_horizontal_busy():
-            continue
 
         self.set_vertical_pos_right(LIFT_DISTANCE)
 
