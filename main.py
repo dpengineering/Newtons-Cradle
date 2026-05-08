@@ -56,18 +56,6 @@ Globals
 GESTURE_MIN_DELTA = 25
 GESTURE_MAX_DELTA = 75
 
-GRAB_ONE = -225
-GRAB_TWO = -190
-GRAB_THREE = -190
-GRAB_FOUR = -160
-
-DISTANCE_TO_FIRST_BALL = 120
-BALL_DIAMETER = 110
-OFFSET_RIGHT = 5
-OFFSET_LEFT = 0
-
-LIFT_DISTANCE = 50
-
 YELLOW = .180, 0.188, 0.980, 1
 BLUE = 0.917, 0.796, 0.380, 1
 AWAY_FROM_HOME = 1
@@ -97,237 +85,6 @@ Builder.load_file('Kivy/Libraries/DPEAButton.kv')
 Builder.load_file('Kivy/Scenes/PauseScene.kv')
 Builder.load_file('Kivy/Scenes/AdminScreen.kv')
 Window.clearcolor = (.9, .9, .9, 1)  # (OFF WHITE)
-
-"""
-Hardware Setup
-"""
-def new_scoop():
-    """
-    New scooped initiated, gets the number of balls on each side and calls the perspective function to control pickups
-    Only at the conclusion of this function is the UI is able to resolve interactions
-    :return: None
-    """
-    num_left = sm.get_screen('main').cradle.num_left()
-    num_right = sm.get_screen('main').cradle.num_right()
-    stop_balls()
-
-    if (num_left + num_right) == 5:
-        scoopFiveBalls(num_left, num_right)
-        release_both()
-        back_to_home()
-        sleep(1)
-        sm.get_screen('main').unpause()
-    else:
-        if num_left == 0:
-            scoop_right(num_right)
-
-            while are_horizontal_busy():
-                continue
-
-            release_right()
-
-        elif num_right == 0:
-            scoop_left(num_left)
-
-            while are_horizontal_busy():
-                continue
-
-            release_left()
-
-        else:
-            scoop_both(num_left, num_right)
-            release_both()
-
-        back_to_home()
-        sleep(1)
-        #sm.get_screen('main').unpause()
-        #quit_all()
-
-def scoop_left(num):
-    """
-    Scoop the balls on the left, doesn't wait for the last move to complete
-    :param num: Number of balls to scoop on the left
-    :return: None
-    """
-
-    p = OFFSET_LEFT + DISTANCE_TO_FIRST_BALL + BALL_DIAMETER * num
-    set_horizontal_speed(speed_in_mm_per_sec)
-    dpiStepper1.moveToRelativePositionInMillimeters(0, p, True)
-
-    while are_horizontal_busy():
-        continue
-
-    dpiStepper1.moveToRelativePositionInMillimeters(1, LIFT_DISTANCE, True)
-
-    while are_vertical_busy():
-        continue
-
-    if num == 1:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, True)
-    elif num == 2:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, True)
-    elif num == 3:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, True)
-    else:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, True)
-
-
-def scoop_right(num):
-    """
-    Scoop the balls on the right, doesn't wait for the last move to complete
-    :param num: Number of balls to scoop on the right
-    :return: None
-    """
-
-    p = OFFSET_RIGHT + DISTANCE_TO_FIRST_BALL + BALL_DIAMETER * num
-    set_horizontal_speed(speed_in_mm_per_sec)
-    dpiStepper0.moveToRelativePositionInMillimeters(0, p, True)
-
-    while are_horizontal_busy():
-        continue
-
-    dpiStepper0.moveToRelativePositionInMillimeters(1, LIFT_DISTANCE, True)
-
-    while are_vertical_busy():
-        continue
-
-    if num == 1:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_ONE + OFFSET_RIGHT, True)
-    elif num == 2:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_TWO + OFFSET_RIGHT, True)
-    elif num == 3:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_THREE + OFFSET_RIGHT, True)
-    else:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
-
-
-def scoopFiveBalls(num_left, num_right):
-    """
-    Scoop left side first, then right
-    This is necessary to prevent a collision
-    """
-    p_r = DISTANCE_TO_FIRST_BALL + OFFSET_RIGHT + BALL_DIAMETER * num_right
-    p_l = DISTANCE_TO_FIRST_BALL + BALL_DIAMETER * num_left
-
-    set_horizontal_pos_left(p_l)
-
-    set_vertical_pos_left(LIFT_DISTANCE)
-
-    if num_left == 1:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, False)
-    elif num_left == 2:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, False)
-    elif num_left == 3:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, False)
-    else:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, False)
-
-    set_horizontal_pos_right(p_r)
-
-    set_vertical_pos_right(LIFT_DISTANCE)
-
-    if num_right == 1:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_ONE + OFFSET_RIGHT, True)
-    elif num_right == 2:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_TWO + OFFSET_RIGHT, True)
-    elif num_right == 3:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_THREE + OFFSET_RIGHT, True)
-    else:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
-
-
-def scoop_both(num_left, num_right):
-    """
-    Scoop both sides
-    :param num_left: Number of balls on the left side to be scooped
-    :param num_right: Number of balls on the right side to be scooped
-    :return: None
-    """
-    p_r = DISTANCE_TO_FIRST_BALL + OFFSET_RIGHT + BALL_DIAMETER * num_right
-    p_l = DISTANCE_TO_FIRST_BALL + BALL_DIAMETER * num_left
-
-    dpiStepper1.moveToRelativePositionInMillimeters(0, p_l, False)
-    dpiStepper0.moveToRelativePositionInMillimeters(0, p_r, True)
-
-    while are_horizontal_busy():
-        continue
-
-    set_vertical_pos(LIFT_DISTANCE)
-
-    while are_vertical_busy():
-        continue
-
-    if num_left == 1:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, False)
-    elif num_left == 2:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, False)
-    elif num_left == 3:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, False)
-    else:
-        dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, False)
-
-    if num_right == 1:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_ONE + OFFSET_RIGHT, True)
-    elif num_right == 2:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_TWO + OFFSET_RIGHT, True)
-    elif num_right == 3:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_THREE + OFFSET_RIGHT, True)
-    else:
-        dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
-
-
-def release_both():
-    """
-    Release both of the vertical steppers
-    :return: None
-    """
-    set_vertical_speed(200)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, False)
-    dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
-
-    speed_reset()
-
-
-def release_right():
-    """
-    Release the right vertical stepper
-    :return: None
-    """
-    set_vertical_speed(200)
-    dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
-
-    speed_reset()
-
-
-def release_left():
-    """
-    Release the left vertical stepper
-    :return: None
-    """
-    set_vertical_speed(200)
-    dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
-
-    speed_reset()
-
-
-def stop_balls():
-    """
-    Stop the balls movement, by bringing vert. steppers up and horiz. steppers in
-    :return: None
-    """
-    # move vertical steppers up
-    set_vertical_pos(60)
-    sleep(1)
-
-    # slowly move the horizontal steppers into the middle/stopping positions
-    set_horizontal_pos(115)
-    sleep(2)
-
-    # slowly move away from balls
-    set_horizontal_pos(-20)
-
-    # reset all cradles
-    double_home()
 
 
 """
@@ -369,14 +126,13 @@ def scoop_balls_thread(*largs):
     if num_right == 0 and num_left == 0:
         return
 
-    pause_time = 5  # N/A
-
     if main.is_paused:
         return
-    main.pause(pause_time)
+    else:
+        main.pause()
 
-    # Thread(target=new_scoop).start()
-    new_scoop()
+    stop_balls(num_left == 0 or num_right == 0) #end at home if either side is empty, otherwise end at ball position
+    scoop(num_left, num_right)
 
 
 sm = ScreenManager()
@@ -425,7 +181,7 @@ class MainScreen(Screen):
         Animation.cancel_all(widget)
         MainScreen.fade_in.start(widget)
 
-    def pause(self, delay):
+    def pause(self):
         Ball.interactive = False
         self.set_visible(self.wait)
         self.is_paused = True

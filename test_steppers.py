@@ -58,7 +58,7 @@ def main():
             try:
                 num_left = int(cmd[1])
                 num_right = int(cmd[2])
-                safe_call(hardware.scoop_both, num_left, num_right)
+                safe_call(hardware.scoop, num_left, num_right)
             except ValueError:
                 print('Invalid numbers')
         elif c == 'home' and len(cmd) == 2:

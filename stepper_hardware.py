@@ -1,15 +1,16 @@
 #!/usr/bin/python3
-import os
 from time import sleep
 
 from moveBothToHome import moveBothToHomeInSteps
 from dpeaDPi.DPiStepper import *
 
 
-GRAB_ONE = -225
-GRAB_TWO = -190
-GRAB_THREE = -190
-GRAB_FOUR = -160
+RELEASE_ONE = 60
+RELEASE_TWO = 150 # distance to release two balls without crashing into scooper on release
+RELEASE_THREE = 300 
+RELEASE_FOUR = 400
+RELEASE_FIVE = 550
+RELEASE_DISTANCES = [0, RELEASE_ONE, RELEASE_TWO, RELEASE_THREE, RELEASE_FOUR, RELEASE_FIVE]
 
 DISTANCE_TO_FIRST_BALL = 120
 BALL_DIAMETER = 110
@@ -21,22 +22,17 @@ LIFT_DISTANCE = 50
 AWAY_FROM_HOME = 1
 BACK_TO_HOME = -1
 
-dpiStepper0 = None
-dpiStepper1 = None
-speed_in_mm_per_sec = 400
-accel_in_mm_per_sec_per_sec = 400
+dpiStepper0 = DPiStepper()
+dpiStepper0.setBoardNumber(0)
+dpiStepper1 = DPiStepper()
+dpiStepper1.setBoardNumber(1)
+
+speed_in_mm_per_sec = 200
+accel_in_mm_per_sec_per_sec = 200
 
 
 def init_hardware():
     """Initialize the DPiStepper boards and default motion settings."""
-    global dpiStepper0, dpiStepper1
-
-    dpiStepper0 = DPiStepper()
-    dpiStepper1 = DPiStepper()
-
-    dpiStepper0.setBoardNumber(0)
-    dpiStepper1.setBoardNumber(1)
-
     if not dpiStepper0.initialize():
         print("Communication with the DPiStepper board 0 failed.")
     sleep(1)
@@ -65,7 +61,6 @@ def quit_all():
     home()
     dpiStepper1.enableMotors(False)
     dpiStepper0.enableMotors(False)
-    os.system("clear")
     quit()
 
 
@@ -73,7 +68,6 @@ def admin_quit_all():
     home()
     dpiStepper1.enableMotors(False)
     dpiStepper0.enableMotors(False)
-    os.system("clear")
     with open("exit_key.txt", "w") as file:
         file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
         file.close()
@@ -92,27 +86,10 @@ def are_vertical_busy():
     return not (left_v_stopped and right_v_stopped)
 
 
-def set_vertical_speed(speed_mm_per_sec):
-    dpiStepper0.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(1, speed_mm_per_sec)
-
-
-def set_horizontal_speed(speed_mm_per_sec):
-    dpiStepper0.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
-    dpiStepper1.setSpeedInMillimetersPerSecond(0, speed_mm_per_sec)
-
 
 def set_vertical_pos(mm):
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True)
-
-
-def set_vertical_pos_right(mm):
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, True)
-
-
-def set_vertical_pos_left(mm):
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True)
+    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, False) # right side
+    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True) # left side
 
 
 def set_horizontal_pos(mm):
@@ -141,7 +118,7 @@ def home(board=0):
     speed_steps_per_second = 200 * microstepping
     directionToMoveTowardHome = BACK_TO_HOME
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
-    homeMaxDistanceToMoveInSteps = 28000
+    homeMaxDistanceToMoveInSteps = 50000
     if board == 0:
         dpiStepper0.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
                                       homeMaxDistanceToMoveInSteps)
@@ -160,7 +137,7 @@ def double_home():
     speed_steps_per_second = 200 * microstepping
     directionToMoveTowardHome = BACK_TO_HOME
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
-    homeMaxDistanceToMoveInSteps = 28000
+    homeMaxDistanceToMoveInSteps = 50000
     moveBothToHomeInSteps(dpiStepper0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
                           homeMaxDistanceToMoveInSteps, directionToMoveTowardHome,
                           homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
@@ -172,46 +149,54 @@ def double_home():
     speed_reset()
 
 
-def release_both():
-    set_vertical_speed(200)
-    set_vertical_pos(-1 * LIFT_DISTANCE)
-    speed_reset()
-
-
-def release_right():
-    set_vertical_speed(200)
-    set_vertical_pos_right(-1 * LIFT_DISTANCE)
-    speed_reset()
-
-
-def release_left():
-    set_vertical_speed(200)
-    set_vertical_pos_left(-1 * LIFT_DISTANCE)
-    speed_reset()
-
 
 # ============================== Scoop Functions ==============================
-def scoop_both(num_left, num_right):
-    if num_left > 5 or num_right > 5 or num_left < 0 or num_right < 0:
-        print("Invalid number of balls to scoop. Must be between 0 and 5.")
+def scoop(num_left, num_right):
+    if num_left < 0 or num_right < 0:
+        print("Number of balls to scoop must be positive.")
         return
     if (num_left + num_right) > 5:
         print("Invalid combination of balls to scoop. Total cannot exceed 5.")
         return
+    if (num_left == 0 and num_right == 0):
+        print("No balls to scoop.")
+        return
     left_mm = DISTANCE_TO_FIRST_BALL + num_left * BALL_DIAMETER + OFFSET_LEFT
     right_mm = DISTANCE_TO_FIRST_BALL + num_right * BALL_DIAMETER + OFFSET_RIGHT
 
-    #horizontal first 
-    dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+    # if all 5 balls are being scooped, we need to stagger stepper movement to avoid collision
+    need_to_wait = (num_left + num_right) == 5
 
-    #then vertical
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+    if(need_to_wait):
+        #first right, then left
+        if(num_right):
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True) #lift
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position
 
-    #pull back
-    dpiStepper0.moveToAbsolutePositionInMillimeters(0, DISTANCE_TO_FIRST_BALL, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(0, DISTANCE_TO_FIRST_BALL, True)
+        if(num_left):
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+    else:
+        if(num_right and num_left):
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, False) #to ball same time
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True) 
+
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, False) #lift same time
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position same time
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+        elif(num_right):
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True) #lift
+            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], True) #get in release position
+        elif(num_left):
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+
 
     #release
     dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
@@ -219,7 +204,12 @@ def scoop_both(num_left, num_right):
 
     back_to_home()
 
-def stop_balls():
+def stop_balls(end_at_home=True):
+    set_vertical_pos(0)
+    back_to_home()
     set_vertical_pos(LIFT_DISTANCE)
     set_horizontal_pos(DISTANCE_TO_FIRST_BALL)
     set_vertical_pos(0)
+    
+    if end_at_home:
+        back_to_home()
