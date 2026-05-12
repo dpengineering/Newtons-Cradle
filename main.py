@@ -8,7 +8,6 @@ import logging
 from kivy.app import App
 from kivy.lang import Builder
 from Kivy.Scenes import AdminScreen
-from threading import Thread
 from kivy.core.window import Window
 from kivy.properties import AliasProperty, ObjectProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -60,6 +59,8 @@ YELLOW = .180, 0.188, 0.980, 1
 BLUE = 0.917, 0.796, 0.380, 1
 AWAY_FROM_HOME = 1
 BACK_TO_HOME = -1
+
+COOLDOWN_SECS = 40 # Time to wait in between starting scoops
 
 MAIN_SCREEN_NAME = 'main'
 
@@ -131,8 +132,18 @@ def scoop_balls_thread(*largs):
     else:
         main.pause()
 
-    stop_balls(num_left == 0 or num_right == 0) #end at home if either side is empty, otherwise end at ball position
-    scoop(num_left, num_right)
+    def run_scoop_sequence(*args):
+        try:
+            # Run the hardware sequence on the Kivy thread, but after the pause UI has had a chance to render.
+            enable_motors()
+            double_home()
+            stop_balls(num_left == 0 or num_right == 0)  # end at home if either side is empty, otherwise end at ball position
+            scoop(num_left, num_right)
+            disable_motors()
+        finally:
+            Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
+
+    Clock.schedule_once(run_scoop_sequence, 1) #wait a second to allow the wait widget to finish updating before starting the scoop sequence
 
 
 sm = ScreenManager()
@@ -420,6 +431,7 @@ if __name__ == "__main__":
     try:
         init_hardware()
         double_home()
+        disable_motors()
         MyApp().run()
     except KeyboardInterrupt:
         quit_all()

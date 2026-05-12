@@ -50,6 +50,14 @@ def init_hardware():
         board.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
         board.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
 
+def disable_motors():
+    dpiStepper0.enableMotors(False)
+    dpiStepper1.enableMotors(False)
+
+def enable_motors():
+    dpiStepper0.enableMotors(True)
+    dpiStepper1.enableMotors(True)
+
 
 def speed_reset():
     for board in [dpiStepper0, dpiStepper1]:
@@ -59,15 +67,13 @@ def speed_reset():
 
 def quit_all():
     home()
-    dpiStepper1.enableMotors(False)
-    dpiStepper0.enableMotors(False)
+    disable_motors()
     quit()
 
 
 def admin_quit_all():
     home()
-    dpiStepper1.enableMotors(False)
-    dpiStepper0.enableMotors(False)
+    disable_motors()
     with open("exit_key.txt", "w") as file:
         file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
         file.close()
