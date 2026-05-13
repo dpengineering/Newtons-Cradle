@@ -505,6 +505,61 @@ class Machine:
         self.set_absolute_horizontal_pos(0)
         self.double_Home()
 
+    def scoop(self, num_left, num_right):
+        if num_left < 0 or num_right < 0:
+            print("Number of balls to scoop must be positive.")
+            return
+        if (num_left + num_right) > 5:
+            print("Invalid combination of balls to scoop. Total cannot exceed 5.")
+            return
+        if (num_left == 0 and num_right == 0):
+            print("No balls to scoop.")
+            return
+        left_mm = DISTANCE_TO_FIRST_BALL + num_left * BALL_DIAMETER + OFFSET_LEFT
+        right_mm = DISTANCE_TO_FIRST_BALL + num_right * BALL_DIAMETER + OFFSET_RIGHT
+
+        # if all 5 balls are being scooped, we need to stagger stepper movement to avoid collision
+        need_to_wait = (num_left + num_right) == 5
+
+        if (need_to_wait):
+            # first right, then left
+            if (num_right):
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True)  # to ball
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)  # lift
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right],
+                                                                False)  # get in release position
+
+            if (num_left):
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+        else:
+            if (num_right and num_left):
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, False)  # to ball same time
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, False)  # lift same time
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right],
+                                                                False)  # get in release position same time
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+            elif (num_right):
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True)  # to ball
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)  # lift
+                self.dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right],
+                                                                True)  # get in release position
+            elif (num_left):
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+                self.dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
+
+        # release
+        self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
+        self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, True)
+
+        self.back_to_home()
+
 if __name__ == "__main__": #run this file to test the machine setup on its own
     m = Machine()
     try:
