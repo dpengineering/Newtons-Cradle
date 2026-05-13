@@ -113,11 +113,15 @@ class MainScreen(Screen):
     def admin_action():
         sm.current = 'admin'
 
+    def get_right_scoop(self):
+        right = self.cradle.num_right()
+        return right
+
+    def get_left_scoop(self):
+        left = self.cradle.num_left()
+        return left
+
     def scoop_call_back(self):
-        # Clock.schedule_once(partial(machine.scoop_balls_thread, self.cradle.SCOOP_LEFT(), self.cradle.SCOOP_RIGHT()), 1)
-        # Clock.schedule_once(self.switch_to_loading_screen, 0)
-        # sleep(1)
-        # machine.scoop_balls(self.cradle.num_left(), self.cradle.num_right())
         self.switch_to_loading_screen()
         Clock.schedule_once(self.cradle.reset_balls, 2)
 

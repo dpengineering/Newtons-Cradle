@@ -257,7 +257,9 @@ class Machine:
                               homeMaxDistanceToMoveInSteps)
 
         self.dpiStepper0.setCurrentPositionInSteps(0, 0)
+        self.dpiStepper0.setCurrentPositionInSteps(1, 0)
         self.dpiStepper1.setCurrentPositionInSteps(0, 0)
+        self.dpiStepper0.setCurrentPositionInSteps(1, 0)
 
         self.speed_reset()
 
@@ -327,20 +329,28 @@ class Machine:
 
         self.set_horizontal_pos_left(p_l)
 
+        sleep(5)
+
         self.set_vertical_pos_left(LIFT_DISTANCE)
 
+        sleep(3)
+
         if num_left == 1:
-            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, False)
+            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_ONE, True)
         elif num_left == 2:
-            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, False)
+            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_TWO, True)
         elif num_left == 3:
-            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, False)
+            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_THREE, True)
         else:
-            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, False)
+            self.dpiStepper1.moveToRelativePositionInMillimeters(0, GRAB_FOUR, True)
 
         self.set_horizontal_pos_right(p_r)
 
+        sleep(5)
+
         self.set_vertical_pos_right(LIFT_DISTANCE)
+
+        sleep(3)
 
         if num_right == 1:
             self.dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_ONE + OFFSET_RIGHT, True)
@@ -350,6 +360,8 @@ class Machine:
             self.dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_THREE + OFFSET_RIGHT, True)
         else:
             self.dpiStepper0.moveToRelativePositionInMillimeters(0, GRAB_FOUR + OFFSET_RIGHT, True)
+
+        sleep(5)
 
 
 
@@ -497,6 +509,6 @@ if __name__ == "__main__": #run this file to test the machine setup on its own
     m = Machine()
     try:
         m.startup()
-        m.scoop_balls(4, 1)
+        m.scoop_balls(2, 3)
     finally:
         m.shutdown()

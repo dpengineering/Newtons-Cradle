@@ -4,34 +4,46 @@ from kivy.uix.screenmanager import Screen
 from kivy.config import Config
 from Machine import Machine
 from time import sleep
+from functools import partial
 
 import threading
 
 machine = Machine()
 
 class LoadingScreen(Screen):
-    SCOOP_LEFT = -1
-    SCOOP_RIGHT = -1
-    timeout = 30
+    # SCOOP_LEFT = -1
+    # SCOOP_RIGHT = -1
 
     def on_enter(self):
         #YOU MIGHT HAVE TO MOVE THIS TO MACHINE.PY
-        scoop_thread = threading.Thread(target=machine.scoop_balls, args=(self.SCOOP_LEFT, self.SCOOP_RIGHT),
+        SCOOP_LEFT = self.manager.get_screen('main').get_left_scoop()
+        SCOOP_RIGHT = self.manager.get_screen('main').get_right_scoop()
+        timeout = 25
+
+        if SCOOP_LEFT == -1 or SCOOP_RIGHT == -1:
+            print("oopsies")
+            print("left:" + str(self.SCOOP_LEFT))
+            print("right:" + str(self.SCOOP_RIGHT))
+            return
+
+        scoop_thread = threading.Thread(target=machine.scoop_balls, args=(SCOOP_LEFT, SCOOP_RIGHT),
                                         daemon=False)
         load_thread = threading.Thread(target=self.loading_animation, daemon=True)
 
-        # if self.SCOOP_LEFT + self.SCOOP_RIGHT == 5:
-        #     self.timeout = 30
+        if SCOOP_LEFT + SCOOP_RIGHT == 5:
+            timeout = 40
 
-        print(self.timeout)
+        print(timeout)
 
         #load_thread.start()
+        #Clock.schedule_once(partial(machine.scoop_balls, SCOOP_LEFT, SCOOP_RIGHT), 5)
         scoop_thread.start()
-        Clock.schedule_once(self.switch_screen_main, self.timeout)
+        self.loading_animation()
+        Clock.schedule_once(self.switch_screen_main, timeout)
 
     def loading_animation(self):
         load = (Animation(size=(5, 10), duration=0.1) +
-                Animation(size=(150, 10), duration=17))
+                Animation(size=(150, 10), duration=37))
         load.start(self.ids.progressBar)
 
     def switch_screen_main(self, dt = None):
