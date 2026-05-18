@@ -44,7 +44,10 @@ def install_stub_modules():
         def setSpeedInMillimetersPerSecond(self, *args, **kwargs):
             return None
 
-        def moveToRelativePositionInMillimeters(self, *args, **kwargs):
+        def moveToAbsolutePositionInMillimeters(self, *args, **kwargs):
+            return None
+        
+        def moveToAbsolutePositionInSteps(self, *args, **kwargs):
             return None
 
         def moveToHomeInSteps(self, *args, **kwargs):
@@ -92,13 +95,12 @@ def stub(name):
 
 # List of hardware functions to stub so UI won't touch hardware
 hardware_stubs = [
-    'init_hardware', 'home', 'quit_all', 'admin_quit_all', 'new_scoop',
-    'scoop_left', 'scoop_right', 'scoop_both', 'scoopFiveBalls',
+    'init_hardware', 'home', 'quit_all', 'admin_quit_all', 'scoop',
     'release_both', 'release_right', 'release_left', 'stop_balls',
     'double_home', 'set_horizontal_pos', 'set_vertical_pos',
     'set_vertical_pos_left', 'set_vertical_pos_right', 'set_horizontal_pos_left',
     'set_horizontal_pos_right', 'set_horizontal_speed', 'set_vertical_speed',
-    'are_horizontal_busy', 'are_vertical_busy'
+    'are_horizontal_busy', 'are_vertical_busy', 'enable_motors', 'disable_motors',
 ]
 
 for name in hardware_stubs:

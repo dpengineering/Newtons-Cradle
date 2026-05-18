@@ -60,7 +60,7 @@ BLUE = 0.917, 0.796, 0.380, 1
 AWAY_FROM_HOME = 1
 BACK_TO_HOME = -1
 
-COOLDOWN_SECS = 40 # Time to wait in between starting scoops
+COOLDOWN_SECS = 10 # Time to wait in between starting scoops, originally 40
 
 MAIN_SCREEN_NAME = 'main'
 
@@ -134,14 +134,35 @@ def scoop_balls_thread(*largs):
 
     def run_scoop_sequence(*args):
         try:
-            # Run the hardware sequence on the Kivy thread, but after the pause UI has had a chance to render.
             enable_motors()
-            double_home()
-            stop_balls(num_left == 0 or num_right == 0)  # end at home if either side is empty, otherwise end at ball position
-            scoop(num_left, num_right)
-            disable_motors()
-        finally:
+            
+            def step1(dt):
+                main.wait.text = "Homing..."
+                Clock.schedule_once(step2, 1)
+            
+            def step2(dt):
+                double_home()
+                main.wait.text = "Resetting..."
+                Clock.schedule_once(step3, 1)
+            
+            def step3(dt):
+                stop_balls(num_left == 0 or num_right == 0)
+                main.wait.text = "Scooping..."
+                Clock.schedule_once(step4, 1)
+            
+            def step4(dt):
+                scoop(num_left, num_right)
+                main.wait.text = "Enjoying..."
+                Clock.schedule_once(step5, 1)
+            
+            def step5(dt):
+                disable_motors()
+                Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
+            
+            Clock.schedule_once(step1, 0)
+        except Exception as e:
             Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
+            raise
 
     Clock.schedule_once(run_scoop_sequence, 1) #wait a second to allow the wait widget to finish updating before starting the scoop sequence
 
