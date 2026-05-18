@@ -16,6 +16,14 @@ GRAB_TWO = -190
 GRAB_THREE = -190
 GRAB_FOUR = -160
 
+RELEASE_ONE = 60
+RELEASE_TWO = 150 # distance to release two balls without crashing into scooper on release
+RELEASE_THREE = 300
+RELEASE_FOUR = 400
+RELEASE_FIVE = 550
+RELEASE_DISTANCES = [0, RELEASE_ONE, RELEASE_TWO, RELEASE_THREE, RELEASE_FOUR, RELEASE_FIVE]
+
+
 DISTANCE_TO_FIRST_BALL = 120
 BALL_DIAMETER = 110
 OFFSET_RIGHT = 4
@@ -558,7 +566,8 @@ class Machine:
         self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
         self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, True)
 
-        self.back_to_home()
+        self.set_absolute_horizontal_pos(0)
+        self.double_Home()
 
 if __name__ == "__main__": #run this file to test the machine setup on its own
     m = Machine()

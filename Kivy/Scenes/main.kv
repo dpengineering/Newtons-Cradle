@@ -10,6 +10,24 @@
         RoundedRectangle:
             pos: self.x, self.y
             size: self.width * (self.value / 100.0), self.height
+    Label:
+        id: loading_text
+        text: 'Loading...'
+        font_size: 40
+        color: 1, 1, 1, 1
+        bold: True
+        outline_width: self.font_size * 0.1
+        outline_color: 0, 0, 0, 1
+        center: root.center
+    Image:
+        id: progressBar
+        source: 'Kivy/Images/white.png'
+        keep_ratio: False
+        allow_stretch: True
+        size_hint: None, None
+        size: 5, 10
+        x: root.center_x - 75
+        y: root.center_y - 70
 
 
 <VariableChanger>:

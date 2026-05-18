@@ -122,8 +122,11 @@ class MainScreen(Screen):
         return left
 
     def scoop_call_back(self):
-        self.switch_to_loading_screen()
-        Clock.schedule_once(self.cradle.reset_balls, 2)
+        #self.switch_to_loading_screen()
+        self.set_visible(self.progress)
+        self.is_paused = True
+        self.loading_animation()
+        Clock.schedule_once(self.cradle.reset_balls, 9)
 
     def set_visible(self, widget):
         if self.is_paused:
@@ -161,6 +164,12 @@ class MainScreen(Screen):
 
     def switch_to_loading_screen(self, dt=None):
         sm.current = 'loading'
+
+class MyProgressBar(Widget):
+    def loading_animation(self):
+        load = (Animation(size=(5, 10), duration=0.1) +
+                Animation(size=(150, 10), duration=10))
+        load.start(self.parent.progressBar)
 
 class Ball(Widget):
     interactive = True
