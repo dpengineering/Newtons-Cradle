@@ -51,6 +51,8 @@ BALL_DIAMETER = 110
 OFFSET_RIGHT = 5
 OFFSET_LEFT = 0
 
+COOLDOWN_SECS = 10 # Time to wait in between starting scoops, originally 40
+
 LIFT_DISTANCE = 50
 
 YELLOW = .180, 0.188, 0.980, 1
