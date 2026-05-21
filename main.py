@@ -65,6 +65,55 @@ MIXPANEL_TOKEN = "02f0373e5a3d6354fbc9d41d6b3a002a"
 machine = Machine()
 sm = ScreenManager()
 
+
+def scoop_balls_thread(*largs):
+    main = sm.get_screen('main')
+
+    num_left = main.cradle.num_left()
+    num_right = main.cradle.num_right()
+
+    if num_right == 0 and num_left == 0:
+        return
+
+    if main.is_paused:
+        return
+    else:
+        main.pause()
+
+    def run_scoop_sequence(*args):
+        try:
+            machine.enable_motors()
+
+            def step1(dt):
+                main.wait.text = "Homing..."
+                Clock.schedule_once(step2, 1)
+
+            def step2(dt):
+                machine.double_home()
+                main.wait.text = "Resetting..."
+                Clock.schedule_once(step3, 1)
+
+            def step3(dt):
+                machine.stop_balls(num_left == 0 or num_right == 0)
+                main.wait.text = "Scooping..."
+                Clock.schedule_once(step4, 1)
+
+            def step4(dt):
+                machine.scoop(num_left, num_right)
+                main.wait.text = "Enjoying..."
+                Clock.schedule_once(step5, 1)
+
+            def step5(dt):
+                machine.disable_motors()
+                Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
+
+            Clock.schedule_once(step1, 0)
+        except Exception as e:
+            Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
+            raise
+
+    Clock.schedule_once(run_scoop_sequence, 1)
+
 """
 DECLARE APP CLASS AND SCREENMANAGER
 LOAD KIVY FILE
@@ -123,10 +172,54 @@ class MainScreen(Screen):
 
     def scoop_call_back(self):
         #self.switch_to_loading_screen()
-        self.set_visible(self.progress)
-        self.is_paused = True
-        self.loading_animation()
-        Clock.schedule_once(self.cradle.reset_balls, 9)
+        self.pause()
+        Clock.schedule_once(self.unpause, 11)
+
+    def scoop_balls_thread(self, *largs):
+        num_left = self.cradle.num_left()
+        num_right = self.cradle.num_right()
+
+        if num_right == 0 and num_left == 0:
+            return
+
+        if self.is_paused:
+            return
+        else:
+            self.pause()
+
+        def run_scoop_sequence(*args):
+            try:
+                machine.enable_motors()
+
+                def step1(dt):
+                    self.wait.text = "Homing..."
+                    Clock.schedule_once(step2, 1)
+
+                def step2(dt):
+                    machine.double_Home()
+                    self.wait.text = "Resetting..."
+                    Clock.schedule_once(step3, 1)
+
+                def step3(dt):
+                    machine.stop_balls(num_left == 0 or num_right == 0)
+                    self.wait.text = "Scooping..."
+                    Clock.schedule_once(step4, 1)
+
+                def step4(dt):
+                    machine.scoop(num_left, num_right)
+                    self.wait.text = "Enjoying..."
+                    Clock.schedule_once(step5, 1)
+
+                def step5(dt):
+                    machine.disable_motors()
+                    Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
+
+                Clock.schedule_once(step1, 0)
+            except Exception as e:
+                Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
+                raise
+
+        Clock.schedule_once(run_scoop_sequence, 1)
 
     def set_visible(self, widget):
         if self.is_paused:
@@ -134,23 +227,24 @@ class MainScreen(Screen):
 
         Animation.cancel_all(self.hint)
         Animation.cancel_all(self.execute)
-        # Animation.cancel_all(self.progress)
+        Animation.cancel_all(self.progress)
         Animation.cancel_all(self.wait)
 
         MainScreen.fade_out.start(self.hint)
         MainScreen.fade_out.start(self.execute)
-        # MainScreen.fade_out.start(self.progress)
+        MainScreen.fade_out.start(self.progress)
         MainScreen.fade_out.start(self.wait)
 
         Animation.cancel_all(widget)
         MainScreen.fade_in.start(widget)
 
-    def pause(self, delay):
+    def pause(self):
         Ball.interactive = False
-        self.set_visible(self.wait)
+        self.set_visible(self.progress)
         self.is_paused = True
+        #self.progress.loading_animation()
 
-    def unpause(self):
+    def unpause(self, dt=None):
         Ball.interactive = True
         self.cradle.reset_balls()
         self.is_paused = False
@@ -167,9 +261,9 @@ class MainScreen(Screen):
 
 class MyProgressBar(Widget):
     def loading_animation(self):
-        load = (Animation(size=(5, 10), duration=0.1) +
-                Animation(size=(150, 10), duration=10))
-        load.start(self.parent.progressBar)
+        load = (Animation(size=(5, 20), duration=0.1) +
+                Animation(size=(400, 20), duration=10))
+        load.start(self.ids.progressBar)
 
 class Ball(Widget):
     interactive = True

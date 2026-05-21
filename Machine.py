@@ -271,6 +271,14 @@ class Machine:
 
         self.speed_reset()
 
+    def enable_motors(self):
+        self.dpiStepper0.enableMotors(True)
+        self.dpiStepper1.enableMotors(True)
+
+    def disable_motors(self):
+        self.dpiStepper0.enableMotors(False)
+        self.dpiStepper1.enableMotors(False)
+
     def scoop_left(self, num):
         """
         Scoop the balls on the left, doesn't wait for the last move to complete
