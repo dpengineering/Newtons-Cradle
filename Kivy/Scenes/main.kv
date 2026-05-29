@@ -1,15 +1,33 @@
 <MyProgressBar>:
     canvas:
         Color:
-            rgb: 0.8, 0.8, 0.8
-        RoundedRectangle:
-            pos: self.x, self.y
-            size: self.width, self.height
+            rgba: 0, 0, 0, .4
+        Rectangle:
+            size: root.width * 0.5, 20
+            pos: root.width * 0.5, 10
         Color:
-            rgb: 0, 0, 1
+            rgba: 0, 0, 0, .8
         RoundedRectangle:
-            pos: self.x, self.y
-            size: self.width * (self.value / 100.0), self.height
+            radius: 7, 7, 7, 7
+            size: root.width * 0.55, 20
+            pos: root.width * 0.5, 10
+    Label:
+        id: loading_text
+        text: 'Loading...'
+        font_size: 35
+        color: 1, 1, 1, 1
+        bold: True
+        outline_width: self.font_size * 0.1
+        outline_color: 0, 0, 0, 1
+        center: root.center
+    Image:
+        id: progressBar
+        source: 'Kivy/Images/white.png'
+        keep_ratio: False
+        allow_stretch: True
+        size_hint: None, None
+        size: 5, 20
+        pos: root.width * 0.5, 10
 
 
 <VariableChanger>:
