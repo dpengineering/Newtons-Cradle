@@ -175,6 +175,10 @@ class Machine:
         self.dpiStepper1.moveToRelativePositionInMillimeters(1, millimeters, False)
         self.dpiStepper0.moveToRelativePositionInMillimeters(1, millimeters, True)
 
+    def set_absolute_vertical_pos(self, millimeters):
+        self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, millimeters, False)
+        self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, millimeters, True)
+
     def set_vertical_pos_right(self, millimeters):
         """
         Set the vertical position of the right vertical stepper
@@ -456,7 +460,7 @@ class Machine:
 
         self.speed_reset()
 
-    def stop_balls(self):
+    def stop_balls(self, end_at_home=True):
         """
         Stop the balls movement, by bringing vert. steppers up and horiz. steppers in
         :return: None
@@ -471,12 +475,14 @@ class Machine:
 
         # slowly move away from balls
         self.set_horizontal_pos(-20)
+        sleep(0.2)
 
-        self.set_vertical_pos(-60)
+        self.set_absolute_vertical_pos(0)
         sleep(0.9)
 
-        self.set_absolute_horizontal_pos(0)
-        sleep(2.5)
+        if end_at_home:
+            self.set_absolute_horizontal_pos(0)
+            sleep(2.5)
 
         #self.set_horizontal_pos(-95, 0, -20)
         # sleep(1)
@@ -517,6 +523,41 @@ class Machine:
             else:
                 self.scoop_both(num_left, num_right)
                 self.release_both()
+
+        self.set_absolute_horizontal_pos(0)
+        self.set_absolute_vertical_pos(0)
+        self.double_Home()
+        sleep(1)
+
+    def scoop_balls_v2(self, left, right, dt=None, *largs):
+        num_left = left
+        num_right = right
+
+        if num_right <= 0 and num_left <= 0:
+            print(num_left, num_right)
+            return
+
+        if num_left + num_right == 5:
+            self.scoopFiveBalls(num_left, num_right)
+        else:
+            if num_left == 0:
+                self.scoop_right(num_right)
+
+                while self.are_horizontal_busy():
+                    continue
+
+            elif num_right == 0:
+                self.scoop_left(num_left)
+
+                while self.are_horizontal_busy():
+                    continue
+
+            else:
+                self.scoop_both(num_left, num_right)
+
+        # release
+        self.dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
+        self.dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, True)
 
         self.set_absolute_horizontal_pos(0)
         self.double_Home()

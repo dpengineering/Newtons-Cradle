@@ -28,6 +28,8 @@ from kivy.core.window import Window
 from pidev.MixPanel import MixPanel
 from time import sleep
 
+import threading
+
 from Machine import Machine
 from loading_screen import LoadingScreen
 #Logger.setLevel("DEBUG")
@@ -173,9 +175,10 @@ class MainScreen(Screen):
         return left
 
     def scoop_call_back(self):
-        #self.switch_to_loading_screen()
-        self.pause()
-        Clock.schedule_once(self.unpause, 11)
+        self.switch_to_loading_screen()
+        Clock.schedule_once(self.cradle.reset_balls, 2)
+        # self.pause()
+        # Clock.schedule_once(self.unpause, 11)
 
     def scoop_balls_thread(self, *largs):
         num_left = self.cradle.num_left()
@@ -189,39 +192,89 @@ class MainScreen(Screen):
         else:
             self.pause()
 
-        def run_scoop_sequence(*args):
-            try:
-                machine.enable_motors()
+        timeout = 20
+        if num_left + num_right == 5:
+            timeout = 30
 
-                def step1(dt):
-                    self.wait.text = "Homing..."
-                    Clock.schedule_once(step2, 1)
+        try:
+            machine.enable_motors()
 
-                def step2(dt):
-                    machine.double_Home()
-                    self.wait.text = "Resetting..."
-                    Clock.schedule_once(step3, 1)
+            def mother():
+                step1()
+                step2()
+                sleep(5)
+                step3()
+                sleep(15)
+                step4()
+                sleep(timeout+1)
+                step5()
+                sleep(1)
 
-                def step3(dt):
-                    machine.stop_balls(num_left == 0 or num_right == 0)
-                    self.wait.text = "Scooping..."
-                    Clock.schedule_once(step4, 1)
+            def step1(dt=None):
+                self.set_visible(self.wait)
+                self.wait.text = "Homing..."
 
-                def step4(dt):
-                    machine.scoop(num_left, num_right)
-                    self.wait.text = "Enjoying..."
-                    Clock.schedule_once(step5, 1)
+            def step2(dt=None):
+                home_thread = threading.Thread(target=machine.double_Home)
+                home_thread.start()
+                self.wait.text = "Resetting..."
 
-                def step5(dt):
-                    machine.disable_motors()
-                    Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
 
-                Clock.schedule_once(step1, 0)
-            except Exception as e:
+            def step3(dt=None):
+                stop_thread = threading.Thread(target=machine.stop_balls, args=(num_left == 0 or num_right == 0))
+                stop_thread.start()
+                self.wait.text = "Scooping..."
+
+            def step4(dt=None):
+                scoop_thread = threading.Thread(target=machine.scoop_balls_v2, args=(num_left, num_right))
+                self.set_visible(self.progress)
+                scoop_thread.start()
+                self.progress.loading_animation(timeout)
+
+            def step5(dt=None):
+                machine.disable_motors()
                 Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
-                raise
 
-        Clock.schedule_once(run_scoop_sequence, 1)
+        except Exception as e:
+            Clock.schedule_once(lambda dt: self.unpause(), 2)
+            raise
+
+        # try:
+        #     machine.enable_motors()
+        #
+        #     def step1(dt=None):
+        #         self.wait.text = "Homing..."
+        #         sleep(1)
+        #         step2()
+        #
+        #     def step2(dt=None):
+        #         home_thread = threading.Thread(target=machine.double_Home)
+        #         home_thread.start()
+        #         self.wait.text = "Resetting..."
+        #         sleep(2)
+        #         step3()
+        #
+        #     def step3(dt=None):
+        #         stop_thread = threading.Thread(target=machine.stop_balls, args=(num_left == 0 or num_right == 0))
+        #         self.wait.text = "Scooping..."
+        #         sleep(2)
+        #         step4()
+        #
+        #     def step4(dt=None):
+        #         scoop_thread = threading.Thread(target=machine.scoop_balls_v2, args=(num_left, num_right))
+        #         self.set_visible(self.progress)
+        #         scoop_thread.start()
+        #         self.progress.loading_animation(timeout)
+        #         Clock.schedule_once(step5, timeout + 1)
+        #
+        #     def step5(dt=None):
+        #         machine.disable_motors()
+        #         Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
+        #
+        #     Clock.schedule_once(step1, 0)
+        # except Exception as e:
+        #     Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
+        #     raise
 
     def set_visible(self, widget):
         if self.is_paused:
@@ -242,7 +295,7 @@ class MainScreen(Screen):
 
     def pause(self):
         Ball.interactive = False
-        self.set_visible(self.progress)
+        #self.set_visible(self.progress)
         self.is_paused = True
         #self.progress.loading_animation()
 
@@ -262,9 +315,9 @@ class MainScreen(Screen):
         sm.current = 'loading'
 
 class MyProgressBar(Widget):
-    def loading_animation(self):
+    def loading_animation(self, timeout):
         load = (Animation(size=(5, 20), duration=0.1) +
-                Animation(size=(400, 20), duration=10))
+                Animation(size=(400, 20), duration=timeout))
         load.start(self.ids.progressBar)
 
 class Ball(Widget):
