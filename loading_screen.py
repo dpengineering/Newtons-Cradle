@@ -11,32 +11,22 @@ import threading
 machine = Machine()
 
 class LoadingScreen(Screen):
-    # SCOOP_LEFT = -1
-    # SCOOP_RIGHT = -1
-
     def on_enter(self):
-        #YOU MIGHT HAVE TO MOVE THIS TO MACHINE.PY
+        #GET NUMBER OF BALLS NEEDED TO SCOOP FROM MAIN SCREEN
         SCOOP_LEFT = self.manager.get_screen('main').get_left_scoop()
         SCOOP_RIGHT = self.manager.get_screen('main').get_right_scoop()
         timeout = 25
 
-        if SCOOP_LEFT == -1 or SCOOP_RIGHT == -1:
-            print("oopsies")
-            print("left:" + str(self.SCOOP_LEFT))
-            print("right:" + str(self.SCOOP_RIGHT))
-            return
-
         scoop_thread = threading.Thread(target=machine.scoop_balls, args=(SCOOP_LEFT, SCOOP_RIGHT),
                                         daemon=False)
-        load_thread = threading.Thread(target=self.loading_animation, daemon=True)
 
+        #IF SCOOPING 5 BALLS, IT WILL TAKE LONGER THAN NORMAL
         if SCOOP_LEFT + SCOOP_RIGHT == 5:
             timeout = 40
 
         print(timeout)
 
-        #load_thread.start()
-        #Clock.schedule_once(partial(machine.scoop_balls, SCOOP_LEFT, SCOOP_RIGHT), 5)
+        #ACTUAL SCOOPING
         machine.enable_motors()
         machine.double_Home()
         scoop_thread.start()
@@ -49,10 +39,13 @@ class LoadingScreen(Screen):
         load.start(self.ids.progressBar)
 
     def switch_screen_main(self, dt = None):
+        #PROGRESS BAR RESET
         self.ids.progressBar.size = (5, 10)
+        #MOTORS BACK TO HOME AND DISABLED
         machine.double_Home()
         machine.disable_motors()
         sleep(1)
+        #SWITCH SCREEN
         self.manager.current = 'main'
 
 if __name__ == "__loading__":

@@ -177,67 +177,65 @@ class MainScreen(Screen):
     def scoop_call_back(self):
         self.switch_to_loading_screen()
         Clock.schedule_once(self.cradle.reset_balls, 2)
-        # self.pause()
-        # Clock.schedule_once(self.unpause, 11)
 
-    def scoop_balls_thread(self, *largs):
-        num_left = self.cradle.num_left()
-        num_right = self.cradle.num_right()
-
-        if num_right == 0 and num_left == 0:
-            return
-
-        if self.is_paused:
-            return
-        else:
-            self.pause()
-
-        timeout = 20
-        if num_left + num_right == 5:
-            timeout = 30
-
-        try:
-            machine.enable_motors()
-
-            def mother():
-                step1()
-                step2()
-                sleep(5)
-                step3()
-                sleep(15)
-                step4()
-                sleep(timeout+1)
-                step5()
-                sleep(1)
-
-            def step1(dt=None):
-                self.set_visible(self.wait)
-                self.wait.text = "Homing..."
-
-            def step2(dt=None):
-                home_thread = threading.Thread(target=machine.double_Home)
-                home_thread.start()
-                self.wait.text = "Resetting..."
-
-
-            def step3(dt=None):
-                stop_thread = threading.Thread(target=machine.stop_balls, args=(num_left == 0 or num_right == 0))
-                stop_thread.start()
-                self.wait.text = "Scooping..."
-
-            def step4(dt=None):
-                scoop_thread = threading.Thread(target=machine.scoop_balls_v2, args=(num_left, num_right))
-                self.set_visible(self.progress)
-                scoop_thread.start()
-                self.progress.loading_animation(timeout)
-
-            def step5(dt=None):
-                machine.disable_motors()
-                Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
-
-        except Exception as e:
-            Clock.schedule_once(lambda dt: self.unpause(), 2)
-            raise
+    # def scoop_balls_thread(self, *largs):
+    #     num_left = self.cradle.num_left()
+    #     num_right = self.cradle.num_right()
+    #
+    #     if num_right == 0 and num_left == 0:
+    #         return
+    #
+    #     if self.is_paused:
+    #         return
+    #     else:
+    #         self.pause()
+    #
+    #     timeout = 20
+    #     if num_left + num_right == 5:
+    #         timeout = 30
+    #
+    #     try:
+    #         machine.enable_motors()
+    #
+    #         def mother():
+    #             step1()
+    #             step2()
+    #             sleep(5)
+    #             step3()
+    #             sleep(15)
+    #             step4()
+    #             sleep(timeout+1)
+    #             step5()
+    #             sleep(1)
+    #
+    #         def step1(dt=None):
+    #             self.set_visible(self.wait)
+    #             self.wait.text = "Homing..."
+    #
+    #         def step2(dt=None):
+    #             home_thread = threading.Thread(target=machine.double_Home)
+    #             home_thread.start()
+    #             self.wait.text = "Resetting..."
+    #
+    #
+    #         def step3(dt=None):
+    #             stop_thread = threading.Thread(target=machine.stop_balls, args=(num_left == 0 or num_right == 0))
+    #             stop_thread.start()
+    #             self.wait.text = "Scooping..."
+    #
+    #         def step4(dt=None):
+    #             scoop_thread = threading.Thread(target=machine.scoop_balls_v2, args=(num_left, num_right))
+    #             self.set_visible(self.progress)
+    #             scoop_thread.start()
+    #             self.progress.loading_animation(timeout)
+    #
+    #         def step5(dt=None):
+    #             machine.disable_motors()
+    #             Clock.schedule_once(lambda dt: self.unpause(), COOLDOWN_SECS)
+    #
+    #     except Exception as e:
+    #         Clock.schedule_once(lambda dt: self.unpause(), 2)
+    #         raise
 
         # try:
         #     machine.enable_motors()
