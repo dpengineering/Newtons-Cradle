@@ -37,17 +37,22 @@ class LoadingScreen(Screen):
 
         #load_thread.start()
         #Clock.schedule_once(partial(machine.scoop_balls, SCOOP_LEFT, SCOOP_RIGHT), 5)
+        machine.enable_motors()
+        machine.double_Home()
         scoop_thread.start()
-        self.loading_animation()
+        self.loading_animation(timeout)
         Clock.schedule_once(self.switch_screen_main, timeout)
 
-    def loading_animation(self):
+    def loading_animation(self, timeout):
         load = (Animation(size=(5, 10), duration=0.1) +
-                Animation(size=(150, 10), duration=37))
+                Animation(size=(150, 10), duration=timeout))
         load.start(self.ids.progressBar)
 
     def switch_screen_main(self, dt = None):
         self.ids.progressBar.size = (5, 10)
+        machine.double_Home()
+        machine.disable_motors()
+        sleep(1)
         self.manager.current = 'main'
 
 if __name__ == "__loading__":

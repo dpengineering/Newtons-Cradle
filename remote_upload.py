@@ -7,7 +7,7 @@ SETTINGS = {
     "username": "pi",
     "password": "dpea7266!",
     "remote_folder": "/home/pi/newtons-cradle-2026",
-    "file_types": [".py", ".txt", ".ui", ".kv"],
+    "file_types": [".py", ".txt", ".ui", ".kv", ".png"],
     "include_subfolders": True
 }
 

@@ -278,10 +278,12 @@ class Machine:
     def enable_motors(self):
         self.dpiStepper0.enableMotors(True)
         self.dpiStepper1.enableMotors(True)
+        print("motors enabled")
 
     def disable_motors(self):
         self.dpiStepper0.enableMotors(False)
         self.dpiStepper1.enableMotors(False)
+        print("motors disabled")
 
     def scoop_left(self, num):
         """
@@ -432,7 +434,7 @@ class Machine:
         Release both of the vertical steppers
         :return: None
         """
-        self.set_vertical_speed(200)
+        self.set_vertical_speed(350)
         self.dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, False)
         self.dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
 
@@ -445,8 +447,10 @@ class Machine:
         Release the right vertical stepper
         :return: None
         """
-        self.set_vertical_speed(200)
+        self.set_vertical_speed(350)
         self.dpiStepper0.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
+
+        sleep(3)
 
         self.speed_reset()
 
@@ -455,8 +459,10 @@ class Machine:
         Release the left vertical stepper
         :return: None
         """
-        self.set_vertical_speed(200)
+        self.set_vertical_speed(350)
         self.dpiStepper1.moveToRelativePositionInMillimeters(1, -1 * LIFT_DISTANCE, True)
+
+        sleep(3)
 
         self.speed_reset()
 
@@ -470,7 +476,7 @@ class Machine:
         sleep(1)
 
         # slowly move the horizontal steppers into the middle/stopping positions
-        self.set_horizontal_pos(125, -2, 3)
+        self.set_horizontal_pos(125, -9, 8)
         sleep(3.5)
 
         # slowly move away from balls
@@ -502,6 +508,7 @@ class Machine:
 
         if (num_left + num_right) == 5:
             self.scoopFiveBalls(num_left, num_right)
+            sleep(1)
             self.release_both()
         else:
             if num_left == 0:
@@ -510,6 +517,7 @@ class Machine:
                 while self.are_horizontal_busy():
                     continue
 
+                sleep(1)
                 self.release_right()
 
             elif num_right == 0:
@@ -517,16 +525,16 @@ class Machine:
 
                 while self.are_horizontal_busy():
                     continue
-
+                sleep(1)
                 self.release_left()
 
             else:
                 self.scoop_both(num_left, num_right)
+                sleep(1)
                 self.release_both()
 
         self.set_absolute_horizontal_pos(0)
         self.set_absolute_vertical_pos(0)
-        self.double_Home()
         sleep(1)
 
     def scoop_balls_v2(self, left, right, dt=None, *largs):
