@@ -1,0 +1,49 @@
+[Unit]
+Description=Newton's Cradle Exhibit (Kivy touchscreen app)
+# Wait for basic system + local filesystems to be up before starting.
+After=multi-user.target
+# Never give up restarting, no matter how many times it crashes (see Restart= below).
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+
+# main.py loads its .kv files and AdminScreen with paths relative to the repo root,
+# so the working directory MUST be the repo root.
+WorkingDirectory=/home/pi/Newtons-Cradle
+
+# SDL (Kivy's backend) renders on the console via KMSDRM and reads the touchscreen
+# directly through evdev, so the service user needs access to the GPU + input devices.
+# 'pi' is normally already in these groups; this makes it explicit.
+SupplementaryGroups=video render input tty
+
+Environment=KIVY_NO_CONSOLELOG=1
+
+# --- Display backend --------------------------------------------------------
+# DEFAULT: running on the console / KMSDRM (no desktop). This matches the
+# "EVDEV KeyCode" SDL messages you were seeing. Nothing extra is needed here.
+#
+# If instead you run inside the Raspberry Pi DESKTOP (X11), comment the line
+# above is unaffected; just ADD these two lines and change WantedBy to
+# graphical.target at the bottom:
+#   Environment=DISPLAY=:0
+#   Environment=XAUTHORITY=/home/pi/.Xauthority
+#
+# If you run the newer Wayland desktop (Bookworm default: labwc/wayfire), use:
+#   Environment=WAYLAND_DISPLAY=wayland-0
+#   Environment=XDG_RUNTIME_DIR=/run/user/1000
+# ---------------------------------------------------------------------------
+
+# Run main.py, filtering ONLY the harmless SDL "unrecognized key" spam
+# (BTN_TOUCH / EVDEV KeyCode 330 from the touchscreen). All other stderr —
+# real tracebacks and errors — passes through untouched to the journal.
+ExecStart=/bin/bash -c 'exec /usr/bin/python3 -u main.py 2> >(grep --line-buffered -v "not recognized by SDL" >&2)'
+
+# Auto-restart on ANY exit (crash, clean quit, or admin "quit all").
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
