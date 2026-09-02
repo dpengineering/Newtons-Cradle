@@ -432,7 +432,13 @@ class VariableChanger(Widget):
 class adminFunctionsScreen(Screen):
     @staticmethod
     def quit_action():
+        # "Restart": quits the app; the systemd service restarts it.
         admin_quit_all()
+
+    @staticmethod
+    def shutdown_action():
+        # "Quit": truly stops the exhibit via `systemctl stop` (no restart).
+        shutdown_service()
 
     @staticmethod
     def back_action():

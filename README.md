@@ -75,5 +75,25 @@ service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
 ### Admin
 
 - Invisible admin button in the bottom-right corner. Password: `7266`.
-- **Quit** — quits the app (systemd restarts it), homing and disabling motors first.
-- **Home / Double Home** — re-home the steppers and return to the main screen.
+- **Restart** — homes, disables motors, and quits the app; the systemd service
+  restarts it automatically. (Use this to reset a misbehaving session.)
+- **Quit** — a true shutdown: homes, disables motors, then runs
+  `systemctl stop newtons-cradle.service` so the app does **not** restart. The
+  exhibit stays off until powered off or the service is started again.
+- **Back** — re-homes the steppers and returns to the main screen.
+
+#### Enabling the Quit button
+
+The **Quit** button runs `sudo systemctl stop newtons-cradle.service`. For the
+`pi` user to do that without a password prompt, add a sudoers rule (run once on
+the Pi):
+
+```bash
+echo 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl stop newtons-cradle.service' \
+  | sudo tee /etc/sudoers.d/newtons-cradle >/dev/null \
+  && sudo chmod 440 /etc/sudoers.d/newtons-cradle \
+  && sudo visudo -c
+```
+
+To bring the exhibit back after a **Quit**, power-cycle it or run
+`sudo systemctl start newtons-cradle.service`.

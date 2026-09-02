@@ -220,13 +220,23 @@
         DPEAButton:
             size_hint: None,None
             background_normal: ''
+            text: 'Restart'
+            size: 400, 150
+            color: 1, 0.5, 0, 1
+            background_color: 0, 0, 0, 0
+            center_x: root.width * .50
+			center_y: root.height * .70
+            on_release: root.quit_action()
+        DPEAButton:
+            size_hint: None,None
+            background_normal: ''
             text: 'Quit'
             size: 400, 150
             color: 1, 0, 0, 1
             background_color: 0, 0, 0, 0
             center_x: root.width * .50
-			center_y: root.height * .50
-            on_release: root.quit_action()
+			center_y: root.height * .45
+            on_release: root.shutdown_action()
         DPEAButton:
             size_hint: None, None
             background_normal: ''
@@ -235,7 +245,7 @@
             color: 0, 0, 1, 1
             background_color:0, 0, 0, 0
             center_x: root.width * .50
-			center_y: root.height * .25
+			center_y: root.height * .20
             on_release: root.back_action()
 
 

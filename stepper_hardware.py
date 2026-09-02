@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import subprocess
 from time import sleep
 
 from moveBothToHome import moveBothToHomeInSteps
@@ -73,11 +74,23 @@ def quit_all():
 
 def admin_quit_all():
     # Quits the app cleanly; the systemd service (Restart=always) brings it
-    # back up. (Previously wrote exit_key.txt to signal Mother-Function.py to
-    # stop the supervisor loop, which no longer exists.)
+    # back up. This is effectively a RESTART. (Previously wrote exit_key.txt to
+    # signal Mother-Function.py to stop the supervisor loop, which no longer
+    # exists.)
     home()
     disable_motors()
     quit()
+
+
+def shutdown_service():
+    # True quit: home, disable motors, then stop the systemd service so the app
+    # does NOT auto-restart. Requires a sudoers rule allowing 'pi' to run
+    # `systemctl stop newtons-cradle.service` without a password (see README).
+    # systemd sends SIGTERM to this process as it stops the unit, which ends
+    # the app.
+    home()
+    disable_motors()
+    subprocess.Popen(["sudo", "systemctl", "stop", "newtons-cradle.service"])
 
 
 def are_horizontal_busy():
