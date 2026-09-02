@@ -72,11 +72,11 @@ def quit_all():
 
 
 def admin_quit_all():
+    # Quits the app cleanly; the systemd service (Restart=always) brings it
+    # back up. (Previously wrote exit_key.txt to signal Mother-Function.py to
+    # stop the supervisor loop, which no longer exists.)
     home()
     disable_motors()
-    with open("exit_key.txt", "w") as file:
-        file.write("aMbRcPdZeMfAgDhEiMjEkAlDmDnToHpIqSr:s(t")
-        file.close()
     quit()
 
 

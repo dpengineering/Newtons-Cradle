@@ -1,51 +1,79 @@
-# NewtonsCradle Documentation :
+# Newton's Cradle
 
-## Main Methods
+A physical, robotic Newton's Cradle exhibit. Visitors use a touchscreen to
+choose how many balls to pull back and release on each side; motorized
+"scooper" arms grab, lift, and release the selected balls to demonstrate
+conservation of momentum.
 
-### scoop
-Scoops desired numbers of balls simultaneously if the sum of the balls being scooped is less than 5.
-Must be called in a thread to ensure the UI and hardware function as intended.
+## Hardware
 
-### scoopFiveBalls
-Scoops left side first then right side. this is necessary to prevent a collision.
-Must be called in a thread to ensure the UI and hardware function as intended.
+- **Raspberry Pi** running the Kivy touchscreen app.
+- **4 stepper motors** across **two DPiStepper boards** (`dpeaDPi` library):
+  - Board 0 = right arm, Board 1 = left arm.
+  - On each board: stepper 0 = horizontal axis, stepper 1 = vertical axis.
+- **Home/limit switches** on each axis, used by the homing routine.
 
-### stop_balls
-Is called before scooping balls after the initial scoop to stop the momentum of balls to ensure a successful scoop.
-Must be called in a thread to ensure the UI and hardware function as intended.
+## Running
 
-## UI Features
-* Sliders will change the value of opposite slider to prevent a collision. 
-  * It will not allow the user to select more than five balls for scooping.
+The app runs as a **systemd service** (`newtons-cradle.service`) that launches
+`main.py` at boot and restarts it automatically if it ever exits or crashes.
 
-* Images of balls will change color based on ho many balls are being picked up on each side.
+Install on the Pi (repo cloned to `/home/pi/Newtons-Cradle`):
 
-### Admin Button
-* The Admin button is located in the bottom right corner, but is invisible.
-* Password to enter the Admin Scene is "7266"
+```bash
+sudo cp /home/pi/Newtons-Cradle/newtons-cradle.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now newtons-cradle.service
+```
 
-### Quit
-Quits execution of the program and exits to the desktop
+Useful commands:
 
-### Home
-Homes the steppers and brings transitions back to the main screen
+```bash
+systemctl status newtons-cradle.service      # is it running?
+journalctl -u newtons-cradle.service -f      # live logs
+sudo systemctl restart newtons-cradle.service
+```
 
-### Double Home
-Homes 2 steppers at a time letting each arm home it's vertical and horizontal motor at the same time
+`main.py` loads its `.kv` files and `AdminScreen` using paths relative to the
+repo root, so it must be run with the repo root as the working directory (the
+service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
 
-### Mother-Function.py file
-This function was used as a fix to a bug which made the motors and UI break after spamming the touch screen, adding a extra file allows for the main function to quit itself before creating a new thread which prevents kivy from breaking due to input overload the function then continuously runs main.py through a while True loop
+> Note: SDL logs harmless `EVDEV KeyCode 330 ... not recognized by SDL`
+> messages — that code is the touchscreen's `BTN_TOUCH` event, which has no
+> keyboard mapping. It has no effect on the app; the service filters these
+> lines out of the logs.
 
-### admin_quit_all
-After the addition of Mother-Function exiting the home through the admin screen became impossible. I created a new function called admin_quit_all which adds a txt file in the rasberry pi with a key before it quits main.py Mother function then checks for the added file and the key inside, if they are detected Mother-Functions breaks from the while true loop stopping the code and deletes the files in the process.
+## Code layout
 
-## End of year 2024
+| File | Purpose |
+|------|---------|
+| `main.py` | Kivy app: touchscreen UI, ball gesture logic, scoop orchestration. Entry point. |
+| `stepper_hardware.py` | Hardware API over the two DPiStepper boards (`init_hardware`, `scoop`, `home`, `double_home`, `stop_balls`, ...). |
+| `moveBothToHome.py` | Homing routines against the axis home switches. |
+| `Kivy/` | `.kv` layouts, `AdminScreen`, and images. |
+| `variables.json` | Runtime-tunable left/right offsets, written by the admin UI. |
+| `newtons-cradle.service` | systemd unit that runs the app at boot. |
+| `test_steppers.py` | CLI for driving/testing the steppers directly on the device. |
+| `test_ui.py` | Runs the Kivy UI with hardware stubbed out (for machines without the boards). |
 
-### Bugs Fixed
-I fixed a bug which broke the motors and UI when anybody spammed the screen when the UI was running. There haven't been any errors since that I've noticed.
+## Key functions (`stepper_hardware.py`)
 
-### Going Forward
-Most additions to the Newton's Cradle project to this point should be stylistic and to make the functions run smoother (QUADRA HOME FUNCTION!?!?), 
-* Please note that use of threading breaks kivy so try to refrain from using Threading in main.py, also threading won't work for moving two motors in unison
-* Possibly main.py could work without Mother-Function if threading is removed, previous software developers used threading as a way to keep the code running without breaking, however it could be possible with enough testing. 
+- **`scoop(num_left, num_right)`** — scoops the requested number of balls on
+  each side. If either side is 5, sides are staggered to avoid a collision.
+- **`stop_balls(end_at_home=True)`** — halts ball momentum before a re-scoop so
+  the arms can grab cleanly.
+- **`home(board)` / `double_home()`** — home the steppers. `double_home` homes
+  each arm's vertical and horizontal motors together (two at a time).
+- **`quit_all()` / `admin_quit_all()`** — home, disable motors, and quit; the
+  systemd service then restarts the app.
 
+## UI
+
+- Sliders/ball images limit selection so the two sides never sum to more than 5.
+- Ball images change color to reflect how many are selected per side.
+
+### Admin
+
+- Invisible admin button in the bottom-right corner. Password: `7266`.
+- **Quit** — quits the app (systemd restarts it), homing and disabling motors first.
+- **Home / Double Home** — re-home the steppers and return to the main screen.
