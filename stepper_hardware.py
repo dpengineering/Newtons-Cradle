@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import subprocess
-from time import sleep
+from time import sleep, time
 
 from moveBothToHome import moveBothToHomeInSteps
 from dpeaDPi.DPiStepper import *
@@ -105,6 +105,21 @@ def are_vertical_busy():
     return not (left_v_stopped and right_v_stopped)
 
 
+def _wait_while_busy(busy_fn, timeout=15.0):
+    # Block until motion on both boards has stopped. Used to synchronize moves
+    # that were fired non-blocking (waitToFinish=False) on both arms so they run
+    # simultaneously. The initial sleep lets the controllers register the move
+    # before we poll (otherwise the status can still read "stopped" and we'd
+    # return instantly). The timeout guards against ever hanging if a motor
+    # stalls or a status never clears.
+    sleep(0.1)
+    start = time()
+    while busy_fn():
+        if time() - start > timeout:
+            print("Warning: motion did not stop within %.0fs timeout." % timeout)
+            break
+        sleep(0.02)
+
 
 def set_vertical_pos(mm):
     dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, False) # right side
@@ -124,19 +139,19 @@ def set_horizontal_pos_left(mm):
     dpiStepper1.moveToAbsolutePositionInMillimeters(0, mm + OFFSET_LEFT, True)
 
 def back_to_home():
-    # Verticals first so the scoopers can't hit the cradle on the way back.
-    # Every move uses waitToFinish=True so the verticals fully retract before
-    # the horizontals start, AND so the move actually completes regardless of
-    # which arm moved. (Previously the only blocking call was on the LEFT board;
-    # when num_left == 0 it was a no-op, so the right arm's moves raced ahead and
-    # the horizontal retracted before the vertical finished dropping.)
-    # An arm that is already home makes its calls instant no-ops, so single-arm
-    # scoops see no extra delay.
-    dpiStepper0.moveToAbsolutePositionInSteps(1, 0, True)
-    dpiStepper1.moveToAbsolutePositionInSteps(1, 0, True)
+    # Both arms move together: fire each move non-blocking, then wait for both
+    # to finish before continuing. Verticals first so the scoopers can't hit the
+    # cradle on the way back, THEN horizontals. Waiting on both boards (rather
+    # than relying on one board's blocking call) keeps motion synchronized and
+    # complete no matter which arm moved. An arm already at 0 is an instant
+    # no-op, so single-arm scoops see no extra delay.
+    dpiStepper0.moveToAbsolutePositionInSteps(1, 0, False)
+    dpiStepper1.moveToAbsolutePositionInSteps(1, 0, False)
+    _wait_while_busy(are_vertical_busy)
 
-    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, True)
-    dpiStepper1.moveToAbsolutePositionInSteps(0, 0, True)
+    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, False)
+    dpiStepper1.moveToAbsolutePositionInSteps(0, 0, False)
+    _wait_while_busy(are_horizontal_busy)
 
 
 def home(board=0):
@@ -224,11 +239,12 @@ def scoop(num_left, num_right):
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
 
 
-    # release: lower both scoopers to 0 to drop the balls. waitToFinish=True on
-    # BOTH so the drop always completes, even when only one arm was used (the
-    # idle arm is already at 0, so its call returns instantly with no delay).
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, True)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, True)
+    # release: lower both scoopers to 0 at the SAME TIME so the balls drop
+    # together. Fire both non-blocking, then wait for both to finish (an idle
+    # arm is already at 0, so it just returns instantly).
+    dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
+    dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, False)
+    _wait_while_busy(are_vertical_busy)
 
     back_to_home()
 
