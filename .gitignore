@@ -1,2 +1,6 @@
 __pycache__/*.pyc
 Kivy/Scenes/__pycache__/AdminScreen.cpython-310.pyc
+
+# Live, per-machine tuning edited via the admin page (offsets, cooldown).
+# Each exhibit owns its own copy; start from variables.example.json.
+variables.json

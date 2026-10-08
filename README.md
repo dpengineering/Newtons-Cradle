@@ -21,10 +21,18 @@ The app runs as a **systemd service** (`newtons-cradle.service`) that launches
 Install on the Pi (repo cloned to `/home/pi/Newtons-Cradle`):
 
 ```bash
+# One-time: create this machine's live tuning file from the template.
+cp /home/pi/Newtons-Cradle/variables.example.json /home/pi/Newtons-Cradle/variables.json
+
 sudo cp /home/pi/Newtons-Cradle/newtons-cradle.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now newtons-cradle.service
 ```
+
+`variables.json` holds this exhibit's live tuning (offsets + cooldown) and is
+written by the admin page, so it is **git-ignored** — each machine keeps its own
+and `git pull` never overwrites it. `variables.example.json` is the tracked
+default to copy from.
 
 Useful commands:
 
@@ -51,7 +59,8 @@ service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
 | `stepper_hardware.py` | Hardware API over the two DPiStepper boards (`init_hardware`, `scoop`, `home`, `double_home`, `stop_balls`, ...). |
 | `moveBothToHome.py` | Homing routines against the axis home switches. |
 | `Kivy/` | `.kv` layouts, `AdminScreen`, and images. |
-| `variables.json` | Runtime-tunable left/right offsets, written by the admin UI. |
+| `variables.json` | Per-machine live tuning (offsets + cooldown), written by the admin UI. Git-ignored; copied from `variables.example.json`. |
+| `variables.example.json` | Tracked default template for `variables.json`. |
 | `newtons-cradle.service` | systemd unit that runs the app at boot. |
 | `test_steppers.py` | CLI for driving/testing the steppers directly on the device. |
 | `test_ui.py` | Runs the Kivy UI with hardware stubbed out (for machines without the boards). |
