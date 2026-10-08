@@ -396,6 +396,16 @@ class MyProgressBar(Widget):
     value = NumericProperty(0)
 
 
+# Default admin-tunable offsets; overridden by variables.json when present.
+# These mirror the hardware defaults in stepper_hardware.py so the admin
+# changers always have a value to show and edit (never None).
+OFFSET_DEFAULTS = {
+    "offset_left": -4,
+    "offset_right": 9,
+    "offset_v_left": 0,
+    "offset_v_right": 0,
+}
+
 variables_dict = {}
 if os.path.exists("variables.json"):
     with open("variables.json") as o:
@@ -403,6 +413,25 @@ if os.path.exists("variables.json"):
 
     for v in variables_dict.keys():
         globals()[v] = variables_dict[v]
+
+# Seed any offset the file didn't supply so the changers never read None.
+for _k, _default in OFFSET_DEFAULTS.items():
+    globals().setdefault(_k, _default)
+
+
+def apply_offsets_to_hardware():
+    # Push the admin tuning globals into the hardware module so the scoop
+    # actually uses them (see stepper_hardware.set_offsets). Called at startup
+    # and after every admin edit.
+    set_offsets(
+        offset_left=globals().get("offset_left"),
+        offset_right=globals().get("offset_right"),
+        offset_v_left=globals().get("offset_v_left"),
+        offset_v_right=globals().get("offset_v_right"),
+    )
+
+
+apply_offsets_to_hardware()
 
 
 class VariableChanger(Widget):
@@ -423,6 +452,9 @@ class VariableChanger(Widget):
         variables_dict[self.name] = value
         self.label.text = self.name + ": " + str(self.get_value())
         self.save_value()
+        # Keep the hardware in sync when an offset is changed (no-op for other
+        # variables like COOLDOWN_SECS, which the hardware doesn't read).
+        apply_offsets_to_hardware()
 
     def save_value(self):
         with open("variables.json", "w+") as o:

@@ -91,6 +91,17 @@ service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
   exhibit stays off until powered off or the service is started again.
 - **Back** — re-homes the steppers and returns to the main screen.
 
+#### Tuning offsets and cooldown
+
+The `+`/`−` controls at the top of the admin screen adjust live values that are
+saved to `variables.json` and applied immediately to the hardware:
+
+- **`offset_left` / `offset_right`** — horizontal trim (mm) for how far each arm
+  reaches toward the balls. Defaults 9 (right) / −4 (left).
+- **`offset_v_left` / `offset_v_right`** — vertical trim (mm) added to each arm's
+  lift height when scooping. Defaults 0.
+- **`COOLDOWN_SECS`** — seconds to wait between scoops.
+
 #### Enabling the Quit button
 
 The **Quit** button runs `sudo systemctl stop newtons-cradle.service`. For the

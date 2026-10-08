@@ -1,7 +1,7 @@
 {
   "COOLDOWN_SECS": 20,
-  "offset_left": -5,
-  "offset_right": 6,
+  "offset_left": -4,
+  "offset_right": 9,
   "offset_v_left": 0,
   "offset_v_right": 0
 }

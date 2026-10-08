@@ -16,7 +16,10 @@ RELEASE_DISTANCES = [0, RELEASE_ONE, RELEASE_TWO, RELEASE_THREE, RELEASE_FOUR, R
 DISTANCE_TO_FIRST_BALL = 120
 BALL_DIAMETER = 110
 OFFSET_RIGHT = 9 # empirically determined by testing against DISTANCE_TO_FIRST_BALL until contact is made
-OFFSET_LEFT = -4 
+OFFSET_LEFT = -4
+# Vertical lift trim per arm (mm added to LIFT_DISTANCE). 0 = no change.
+OFFSET_V_RIGHT = 0
+OFFSET_V_LEFT = 0
 
 LIFT_DISTANCE = 50
 
@@ -30,6 +33,23 @@ dpiStepper1.setBoardNumber(1)
 
 speed_in_mm_per_sec = 200
 accel_in_mm_per_sec_per_sec = 200
+
+
+def set_offsets(offset_left=None, offset_right=None,
+                offset_v_left=None, offset_v_right=None):
+    # Bridge the admin-page tuning values (held as globals in main.py and
+    # persisted to variables.json) into this module's offset constants, which
+    # scoop()/set_horizontal_pos()/the lift moves actually read. Only non-None
+    # values are applied, so a missing key leaves the current value untouched.
+    global OFFSET_LEFT, OFFSET_RIGHT, OFFSET_V_LEFT, OFFSET_V_RIGHT
+    if offset_left is not None:
+        OFFSET_LEFT = offset_left
+    if offset_right is not None:
+        OFFSET_RIGHT = offset_right
+    if offset_v_left is not None:
+        OFFSET_V_LEFT = offset_v_left
+    if offset_v_right is not None:
+        OFFSET_V_RIGHT = offset_v_right
 
 
 def init_hardware():
@@ -204,6 +224,9 @@ def scoop(num_left, num_right):
         return
     left_mm = DISTANCE_TO_FIRST_BALL + num_left * BALL_DIAMETER + OFFSET_LEFT
     right_mm = DISTANCE_TO_FIRST_BALL + num_right * BALL_DIAMETER + OFFSET_RIGHT
+    # Per-arm lift height, trimmed by the vertical offsets.
+    right_lift = LIFT_DISTANCE + OFFSET_V_RIGHT
+    left_lift = LIFT_DISTANCE + OFFSET_V_LEFT
 
     # if all 5 balls are being scooped, we need to stagger stepper movement to avoid collision
     need_to_wait = (num_left + num_right) == 5
@@ -212,30 +235,30 @@ def scoop(num_left, num_right):
         #first right, then left
         if(num_right):
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True) #lift
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, True) #lift
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position
 
         if(num_left):
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
     else:
         if(num_right and num_left):
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, False) #to ball same time
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True) 
 
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, False) #lift same time
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, False) #lift same time
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
 
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position same time
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
         elif(num_right):
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True) #lift
+            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, True) #lift
             dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], True) #get in release position
         elif(num_left):
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, LIFT_DISTANCE, True)
+            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
 
 
