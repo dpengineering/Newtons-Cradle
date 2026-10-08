@@ -124,11 +124,18 @@ def set_horizontal_pos_left(mm):
     dpiStepper1.moveToAbsolutePositionInMillimeters(0, mm + OFFSET_LEFT, True)
 
 def back_to_home():
-    # Vertical first to avoid hitting the cradle on the way back
-    dpiStepper0.moveToAbsolutePositionInSteps(1, 0, False)
+    # Verticals first so the scoopers can't hit the cradle on the way back.
+    # Every move uses waitToFinish=True so the verticals fully retract before
+    # the horizontals start, AND so the move actually completes regardless of
+    # which arm moved. (Previously the only blocking call was on the LEFT board;
+    # when num_left == 0 it was a no-op, so the right arm's moves raced ahead and
+    # the horizontal retracted before the vertical finished dropping.)
+    # An arm that is already home makes its calls instant no-ops, so single-arm
+    # scoops see no extra delay.
+    dpiStepper0.moveToAbsolutePositionInSteps(1, 0, True)
     dpiStepper1.moveToAbsolutePositionInSteps(1, 0, True)
 
-    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, False)
+    dpiStepper0.moveToAbsolutePositionInSteps(0, 0, True)
     dpiStepper1.moveToAbsolutePositionInSteps(0, 0, True)
 
 
@@ -217,8 +224,10 @@ def scoop(num_left, num_right):
             dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
 
 
-    #release
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
+    # release: lower both scoopers to 0 to drop the balls. waitToFinish=True on
+    # BOTH so the drop always completes, even when only one arm was used (the
+    # idle arm is already at 0, so its call returns instantly with no delay).
+    dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, True)
     dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, True)
 
     back_to_home()
