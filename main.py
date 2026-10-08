@@ -60,7 +60,7 @@ BLUE = 0.917, 0.796, 0.380, 1
 AWAY_FROM_HOME = 1
 BACK_TO_HOME = -1
 
-COOLDOWN_SECS = 10 # Time to wait in between starting scoops, originally 40
+COOLDOWN_SECS = 20 # Time to wait in between starting scoops, originally 40
 
 MAIN_SCREEN_NAME = 'main'
 
