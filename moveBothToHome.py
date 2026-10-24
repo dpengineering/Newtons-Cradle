@@ -4,9 +4,7 @@ from time import sleep
 
 def _wait_for_home_state(dpiStepper: DPiStepper, stepperNum: int, target_home_state: bool):
     for _ in range(100000):
-        results, stoppedFlg, __, homeAtHomeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
-        if results != True:
-            return False
+        stoppedFlg, _, homeAtHomeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
         if stoppedFlg:
             return False
         if homeAtHomeSwitchFlg == target_home_state:
@@ -17,11 +15,10 @@ def _wait_for_home_state(dpiStepper: DPiStepper, stepperNum: int, target_home_st
 
 def _home_stepper_to_state(dpiStepper: DPiStepper, stepperNum: int, directionTowardHome: int,
                            maxDistanceToMoveInSteps: int, target_home_state: bool):
-    if dpiStepper.moveToRelativePositionInSteps(
-            stepperNum,
-            maxDistanceToMoveInSteps * directionTowardHome * (1 if target_home_state else -1),
-            False) != True:
-        return False
+    dpiStepper.moveToRelativePositionInSteps(
+        stepperNum,
+        maxDistanceToMoveInSteps * directionTowardHome * (1 if target_home_state else -1),
+        False)
 
     if not _wait_for_home_state(dpiStepper, stepperNum, target_home_state):
         return False
@@ -36,24 +33,19 @@ def _home_steppers_to_state(dpiStepper: DPiStepper, steppers, target_home_state:
 
     # Set speeds and accelerations for both motors
     for stepperNum, directionTowardHome, speedInStepsPerSecond, maxDistanceToMoveInSteps in steppers:
-        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speedInStepsPerSecond) != True:
-            return False
-        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speedInStepsPerSecond) != True:
-            return False
+        dpiStepper.setSpeedInStepsPerSecond(stepperNum, speedInStepsPerSecond)
+        dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speedInStepsPerSecond)
 
     for stepperNum, directionTowardHome, _, maxDistanceToMoveInSteps in steppers:
         moveDistance = maxDistanceToMoveInSteps * directionTowardHome
         if not target_home_state:
             moveDistance = -moveDistance
-        if dpiStepper.moveToRelativePositionInSteps(stepperNum, moveDistance, False) != True:
-            return False
+        dpiStepper.moveToRelativePositionInSteps(stepperNum, moveDistance, False)
 
     stepper_done = {stepperNum: False for stepperNum, _, _, _ in steppers}
     for _ in range(100000):
         for stepperNum, _, _, _ in steppers:
-            results, stoppedFlg, __, homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
-            if results != True:
-                return False
+            stoppedFlg, _, homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
 
             if not stepper_done[stepperNum]:
                 if homeSwitchFlg == target_home_state:
@@ -81,13 +73,10 @@ def moveToHomeInSteps(dpiStepper: DPiStepper, stepperNum: int, directionTowardHo
     if not ((directionTowardHome == 1) or (directionTowardHome == -1)):
         return False
 
-    if dpiStepper.enableMotors(True) != True:
-        return False
+    dpiStepper.enableMotors(True)
 
-    results, _ , _, homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum)
-    if results != True:
-        return False
-    
+    homeSwitchFlg = dpiStepper.getStepperStatus(stepperNum).at_home
+
     # Phase 1: move toward home until the motor hits its sensor.
     if homeSwitchFlg != True:
         if not _home_steppers_to_state(dpiStepper,steppers_normal,True):
@@ -103,12 +92,9 @@ def moveToHomeInSteps(dpiStepper: DPiStepper, stepperNum: int, directionTowardHo
     
     # reset speed and position
     for stepperNum, _, speed, _ in steppers_normal:
-        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed) != True:
-            return False
-        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed) != True:
-            return False
-        if dpiStepper.setCurrentPositionInSteps(stepperNum, 0) != True:
-            return False
+        dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed)
+        dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed)
+        dpiStepper.setCurrentPositionInSteps(stepperNum, 0)
 
     return True
 
@@ -134,14 +120,11 @@ def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
         if not ((directionTowardHome == 1) or (directionTowardHome == -1)):
             return False
     
-    if dpiStepper.enableMotors(True) != True:
-        return False
+    dpiStepper.enableMotors(True)
     
-    results0, _, _, home0 = dpiStepper.getStepperStatus(0)
-    results1, _, _, home1 = dpiStepper.getStepperStatus(1)
-    if results0 != True or results1 != True:
-        return False
-    
+    home0 = dpiStepper.getStepperStatus(0).at_home
+    home1 = dpiStepper.getStepperStatus(1).at_home
+
     # Phase 1: move toward home until each motor individually hits its sensor.
     if home0 != True or home1 != True:
         if not _home_steppers_to_state(dpiStepper, steppers_normal, True):
@@ -157,12 +140,9 @@ def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
 
     # reset speed and position
     for stepperNum, _, speed, _ in steppers_normal:
-        if dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed) != True:
-            return False
-        if dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed) != True:
-            return False
-        if dpiStepper.setCurrentPositionInSteps(stepperNum, 0) != True:
-            return False
+        dpiStepper.setSpeedInStepsPerSecond(stepperNum, speed)
+        dpiStepper.setAccelerationInStepsPerSecondPerSecond(stepperNum, speed)
+        dpiStepper.setCurrentPositionInSteps(stepperNum, 0)
     
     return True
 
@@ -170,8 +150,7 @@ def moveBothToHomeInSteps(dpiStepper: DPiStepper, directionTowardHome0: int,
 if __name__ == "__main__":
     dpiStepper = DPiStepper()
     dpiStepper.setBoardNumber(0)
-    if dpiStepper.initialize() != True:
-        print("Communication with the DPiStepper board failed.")
+    dpiStepper.initialize()
 
     dpiStepper.enableMotors(True)
 

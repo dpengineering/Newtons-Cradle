@@ -20,7 +20,12 @@ The app runs as a **systemd service** (`newtons-cradle.service`) that launches
 
 Install on the Pi (repo cloned to `/home/pi/Newtons-Cradle`):
 
+Dependencies are pinned in `pyproject.toml` / `uv.lock` and installed with
+[uv](https://docs.astral.sh/uv/) into `.venv/`, which the service runs from.
+
 ```bash
+cd /home/pi/Newtons-Cradle && uv sync --locked
+
 # One-time: create this machine's live tuning file from the template.
 cp /home/pi/Newtons-Cradle/variables.example.json /home/pi/Newtons-Cradle/variables.json
 

@@ -54,11 +54,9 @@ def set_offsets(offset_left=None, offset_right=None,
 
 def init_hardware():
     """Initialize the DPiStepper boards and default motion settings."""
-    if not dpiStepper0.initialize():
-        print("Communication with the DPiStepper board 0 failed.")
+    dpiStepper0.initialize()
     sleep(1)
-    if not dpiStepper1.initialize():
-        print("Communication with the DPiStepper board 1     failed.")
+    dpiStepper1.initialize()
 
     dpiStepper0.enableMotors(True)
     dpiStepper1.enableMotors(True)
@@ -114,14 +112,14 @@ def shutdown_service():
 
 
 def are_horizontal_busy():
-    _, right_h_stopped, _, _ = dpiStepper0.getStepperStatus(0)
-    _, left_h_stopped, _, _ = dpiStepper1.getStepperStatus(0)
+    right_h_stopped = dpiStepper0.getStepperStatus(0).stopped
+    left_h_stopped = dpiStepper1.getStepperStatus(0).stopped
     return not (left_h_stopped and right_h_stopped)
 
 
 def are_vertical_busy():
-    _, right_v_stopped, _, _ = dpiStepper0.getStepperStatus(1)
-    _, left_v_stopped, _, _ = dpiStepper1.getStepperStatus(1)
+    right_v_stopped = dpiStepper0.getStepperStatus(1).stopped
+    left_v_stopped = dpiStepper1.getStepperStatus(1).stopped
     return not (left_v_stopped and right_v_stopped)
 
 
