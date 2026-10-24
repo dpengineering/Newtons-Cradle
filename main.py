@@ -23,7 +23,7 @@ from kivy.uix.image import Image
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.clock import Clock
 from kivy.animation import Animation
-from functools import partial
+from functools import partial, wraps
 from kivy.config import Config
 from kivy.core.window import Window
 try:
@@ -118,6 +118,17 @@ def transition_back(original_scene):
     sm.current = original_scene
 
 
+def disable_motors_on_failure(step):
+    @wraps(step)
+    def guarded(dt):
+        try:
+            return step(dt)
+        except BaseException:
+            disable_motors()
+            raise
+    return guarded
+
+
 def scoop_balls_thread(*largs):
     main = sm.get_screen('main')
 
@@ -132,37 +143,36 @@ def scoop_balls_thread(*largs):
     else:
         main.pause()
 
-    def run_scoop_sequence(*args):
-        try:
-            enable_motors()
-            
-            def step1(dt):
-                main.wait.text = "Homing..."
-                Clock.schedule_once(step2, 1)
-            
-            def step2(dt):
-                double_home()
-                main.wait.text = "Resetting..."
-                Clock.schedule_once(step3, 1)
-            
-            def step3(dt):
-                stop_balls(num_left == 0 or num_right == 0)
-                main.wait.text = "Scooping..."
-                Clock.schedule_once(step4, 1)
-            
-            def step4(dt):
-                scoop(num_left, num_right)
-                main.wait.text = "Enjoying..."
-                Clock.schedule_once(step5, 1)
-            
-            def step5(dt):
-                disable_motors()
-                Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
-            
-            Clock.schedule_once(step1, 0)
-        except Exception as e:
-            Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
-            raise
+    @disable_motors_on_failure
+    def run_scoop_sequence(dt):
+        enable_motors()
+        Clock.schedule_once(step1, 0)
+
+    def step1(dt):
+        main.wait.text = "Homing..."
+        Clock.schedule_once(step2, 1)
+
+    @disable_motors_on_failure
+    def step2(dt):
+        double_home()
+        main.wait.text = "Resetting..."
+        Clock.schedule_once(step3, 1)
+
+    @disable_motors_on_failure
+    def step3(dt):
+        stop_balls(num_left == 0 or num_right == 0)
+        main.wait.text = "Scooping..."
+        Clock.schedule_once(step4, 1)
+
+    @disable_motors_on_failure
+    def step4(dt):
+        scoop(num_left, num_right)
+        main.wait.text = "Enjoying..."
+        Clock.schedule_once(step5, 1)
+
+    def step5(dt):
+        disable_motors()
+        Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
 
     Clock.schedule_once(run_scoop_sequence, 1) #wait a second to allow the wait widget to finish updating before starting the scoop sequence
 
@@ -285,6 +295,7 @@ class Ball(Widget):
             elif d.x <= -GESTURE_MIN_DELTA:
                 self.parent.parent.ball_left(p)
                 self.clear()
+                return
             self.parent.parent.ball_touched(p)
             self.clear()
 
@@ -437,6 +448,7 @@ apply_offsets_to_hardware()
 class VariableChanger(Widget):
     name = ObjectProperty(None)
     label = ObjectProperty(None)
+    minimum = NumericProperty(None, allownone=True)
 
     def get_value(self):
         return globals().get(self.name, None)
@@ -448,6 +460,8 @@ class VariableChanger(Widget):
         self.set_value(self.get_value() - 1)
 
     def set_value(self, value):
+        if self.minimum is not None:
+            value = max(value, self.minimum)
         globals()[self.name] = value
         variables_dict[self.name] = value
         self.label.text = self.name + ": " + str(self.get_value())
@@ -475,6 +489,7 @@ class adminFunctionsScreen(Screen):
     @staticmethod
     def back_action():
         double_home()
+        disable_motors()
         sm.current = 'main'
 
 
