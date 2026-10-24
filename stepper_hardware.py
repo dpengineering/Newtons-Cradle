@@ -34,6 +34,10 @@ speed_in_mm_per_sec = 200
 accel_in_mm_per_sec_per_sec = 200
 
 
+class HomingError(RuntimeError):
+    pass
+
+
 def set_offsets(offset_left=None, offset_right=None,
                 offset_v_left=None, offset_v_right=None):
     # Bridge the admin-page tuning values (held as globals in main.py and
@@ -63,10 +67,7 @@ def init_hardware():
     for board in [dpiStepper0, dpiStepper1]:
         board.setStepsPerMillimeter(0, 64)
         board.setStepsPerMillimeter(1, 64)
-        board.setAccelerationInMillimetersPerSecondPerSecond(0, accel_in_mm_per_sec_per_sec)
-        board.setAccelerationInMillimetersPerSecondPerSecond(1, accel_in_mm_per_sec_per_sec)
-        board.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-        board.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+    motion_reset()
 
 def disable_motors():
     dpiStepper0.enableMotors(False)
@@ -77,14 +78,16 @@ def enable_motors():
     dpiStepper1.enableMotors(True)
 
 
-def speed_reset():
+def motion_reset():
+    # Homing leaves both speed and acceleration at the homing rate.
     for board in [dpiStepper0, dpiStepper1]:
-        board.setSpeedInMillimetersPerSecond(0, speed_in_mm_per_sec)
-        board.setSpeedInMillimetersPerSecond(1, speed_in_mm_per_sec)
+        for stepperNum in (0, 1):
+            board.setSpeedInMillimetersPerSecond(stepperNum, speed_in_mm_per_sec)
+            board.setAccelerationInMillimetersPerSecondPerSecond(stepperNum, accel_in_mm_per_sec_per_sec)
 
 
 def quit_all():
-    home()
+    double_home()
     disable_motors()
     quit()
 
@@ -94,7 +97,7 @@ def admin_quit_all():
     # back up. This is effectively a RESTART. (Previously wrote exit_key.txt to
     # signal Mother-Function.py to stop the supervisor loop, which no longer
     # exists.)
-    home()
+    double_home()
     disable_motors()
     quit()
 
@@ -105,7 +108,7 @@ def shutdown_service():
     # `systemctl stop newtons-cradle.service` without a password (see README).
     # systemd sends SIGTERM to this process as it stops the unit, which ends
     # the app.
-    home()
+    double_home()
     disable_motors()
     subprocess.Popen(["sudo", "systemctl", "stop", "newtons-cradle.service"])
 
@@ -133,19 +136,22 @@ def _wait_while_busy(busy_fn, timeout=15.0):
     start = time()
     while busy_fn():
         if time() - start > timeout:
-            print("Warning: motion did not stop within %.0fs timeout." % timeout)
-            break
+            raise TimeoutError("motion did not stop within %.0fs" % timeout)
         sleep(0.02)
 
 
+def _move_together(stepperNum, targets):
+    for board, mm in targets:
+        board.moveToAbsolutePositionInMillimeters(stepperNum, mm, False)
+    _wait_while_busy(are_horizontal_busy if stepperNum == 0 else are_vertical_busy)
+
+
 def set_vertical_pos(mm):
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, mm, False) # right side
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, mm, True) # left side
+    _move_together(1, [(dpiStepper0, mm), (dpiStepper1, mm)])
 
 
 def set_horizontal_pos(mm):
-    dpiStepper0.moveToAbsolutePositionInMillimeters(0, mm + OFFSET_RIGHT, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(0, mm + OFFSET_LEFT, True)
+    _move_together(0, [(dpiStepper0, mm + OFFSET_RIGHT), (dpiStepper1, mm + OFFSET_LEFT)])
     
 
 def set_horizontal_pos_right(mm):
@@ -177,17 +183,12 @@ def home(board=0):
     directionToMoveTowardHome = BACK_TO_HOME
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
     homeMaxDistanceToMoveInSteps = 50000
-    if board == 0:
-        dpiStepper0.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                      homeMaxDistanceToMoveInSteps)
-        dpiStepper0.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                      homeMaxDistanceToMoveInSteps)
-    else:
-        dpiStepper1.moveToHomeInSteps(0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                      homeMaxDistanceToMoveInSteps)
-        dpiStepper1.moveToHomeInSteps(1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                      homeMaxDistanceToMoveInSteps)
-    speed_reset()
+    dpiStepper = dpiStepper0 if board == 0 else dpiStepper1
+    for stepperNum in (0, 1):
+        if not dpiStepper.moveToHomeInSteps(stepperNum, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                                            homeMaxDistanceToMoveInSteps):
+            raise HomingError("homing failed on board %d stepper %d" % (board, stepperNum))
+    motion_reset()
 
 
 def double_home():
@@ -197,14 +198,15 @@ def double_home():
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
     homeMaxDistanceToMoveInSteps = 50000
     for board, dpiStepper in enumerate([dpiStepper0, dpiStepper1]):
-        dpiStepper.moveBothToHomeInSteps(board, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                                         homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome,
-                                         homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+        if not dpiStepper.moveBothToHomeInSteps(board, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                                                homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome,
+                                                homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps):
+            raise HomingError("homing failed on board %d" % board)
         # Unlike moveToHomeInSteps, the driver's dual homing leaves the counters where they were.
         dpiStepper.setCurrentPositionInSteps(0, 0)
         dpiStepper.setCurrentPositionInSteps(1, 0)
 
-    speed_reset()
+    motion_reset()
 
 
 
@@ -225,46 +227,22 @@ def scoop(num_left, num_right):
     right_lift = LIFT_DISTANCE + OFFSET_V_RIGHT
     left_lift = LIFT_DISTANCE + OFFSET_V_LEFT
 
-    # if all 5 balls are being scooped, we need to stagger stepper movement to avoid collision
-    need_to_wait = (num_left + num_right) == 5
+    arms = []
+    if num_right:
+        arms.append((dpiStepper0, right_mm, right_lift, RELEASE_DISTANCES[num_right]))
+    if num_left:
+        arms.append((dpiStepper1, left_mm, left_lift, RELEASE_DISTANCES[num_left]))
 
-    if(need_to_wait):
-        #first right, then left
-        if(num_right):
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, True) #lift
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position
-
-        if(num_left):
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
-    else:
-        if(num_right and num_left):
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, False) #to ball same time
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True) 
-
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, False) #lift same time
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
-
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], False) #get in release position same time
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
-        elif(num_right):
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, right_mm, True) #to ball
-            dpiStepper0.moveToAbsolutePositionInMillimeters(1, right_lift, True) #lift
-            dpiStepper0.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_right], True) #get in release position
-        elif(num_left):
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, left_mm, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(1, left_lift, True)
-            dpiStepper1.moveToAbsolutePositionInMillimeters(0, RELEASE_DISTANCES[num_left], True)
-
+    # With all 5 balls the arms would collide moving together, so the right arm goes first.
+    groups = [[arm] for arm in arms] if (num_left + num_right) == 5 else [arms]
+    for group in groups:
+        _move_together(0, [(board, reach) for board, reach, _, _ in group])
+        _move_together(1, [(board, lift) for board, _, lift, _ in group])
+        _move_together(0, [(board, release) for board, _, _, release in group])
 
     # release: lower both scoopers to 0 at the SAME TIME so the balls drop
-    # together. Fire both non-blocking, then wait for both to finish (an idle
-    # arm is already at 0, so it just returns instantly).
-    dpiStepper0.moveToAbsolutePositionInMillimeters(1, 0, False)
-    dpiStepper1.moveToAbsolutePositionInMillimeters(1, 0, False)
-    _wait_while_busy(are_vertical_busy)
+    # together (an idle arm is already at 0, so it just returns instantly).
+    set_vertical_pos(0)
 
     back_to_home()
 
