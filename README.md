@@ -24,7 +24,7 @@ Dependencies are pinned in `pyproject.toml` / `uv.lock` and installed with
 [uv](https://docs.astral.sh/uv/) into `.venv/`, which the service runs from.
 
 ```bash
-cd /home/pi/Newtons-Cradle && uv sync --locked
+cd /home/pi/Newtons-Cradle && uv sync --locked --no-dev
 
 # One-time: create this machine's live tuning file from the template.
 cp /home/pi/Newtons-Cradle/variables.example.json /home/pi/Newtons-Cradle/variables.json
@@ -55,6 +55,19 @@ service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
 > messages — that code is the touchscreen's `BTN_TOUCH` event, which has no
 > keyboard mapping. It has no effect on the app; the service filters these
 > lines out of the logs.
+
+## Tests
+
+```bash
+uv sync --locked
+uv run pytest
+```
+
+`tests/` runs `stepper_hardware.py`, `moveBothToHome.py` and the Kivy screens
+against `dpeaDPi`'s `SimulatedDPiStepper`, with home switches that close at
+position 0 and a clock that advances on every status poll. No boards are
+needed. Known bugs are marked `xfail(strict=True)`, so fixing one turns its
+test into an unexpected pass until the mark is removed.
 
 ## Code layout
 
