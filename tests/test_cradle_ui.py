@@ -79,6 +79,11 @@ class Touch:
         self.pos = pos
 
 
+def changer(name):
+    return next(widget for widget in admin_functions.walk()
+                if isinstance(widget, main.VariableChanger) and widget.name == name)
+
+
 def swipe(name, dx):
     ball = string(name).ids.ball
     start = Vector(ball.center)
@@ -140,9 +145,11 @@ def test_touches_are_ignored_while_paused():
 
 @known_bug("the Back to Game button switches screens without calling back_action()")
 def test_back_to_game_clears_a_partial_password():
+    main.sm.current = "admin"
     for digit in (1, 2):
         admin.add_num(digit)
     admin.ids.back.dispatch("on_press")
+    main.sm.current = "admin"
     for digit in (7, 2, 6, 6):
         admin.add_num(digit)
     admin.check_pass()
@@ -153,15 +160,14 @@ def test_back_to_game_clears_a_partial_password():
 def test_cooldown_never_goes_below_zero(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main, "COOLDOWN_SECS", 0)
-    changer = main.VariableChanger(name="COOLDOWN_SECS")
-    changer.dec_value()
+    changer("COOLDOWN_SECS").dec_value()
     assert main.COOLDOWN_SECS == 0
 
 
 def test_offset_changes_reach_the_hardware_and_variables_json(monkeypatch, tmp_path, boards):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main, "variables_dict", {})
-    main.VariableChanger(name="offset_right").inc_value()
+    changer("offset_right").inc_value()
     assert hw.OFFSET_RIGHT == main.offset_right
     assert '"offset_right"' in (tmp_path / "variables.json").read_text()
 
