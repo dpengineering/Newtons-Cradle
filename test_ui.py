@@ -54,7 +54,7 @@ def install_stub_modules():
             return None
 
         def getStepperStatus(self, *args, **kwargs):
-            return (False, False, False, False)
+            return (False, False, False)
 
     class _NoOpMixPanel:
         def __init__(self, *args, **kwargs):

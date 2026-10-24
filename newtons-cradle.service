@@ -36,10 +36,10 @@ Environment=KIVY_NO_CONSOLELOG=1
 #   Environment=XDG_RUNTIME_DIR=/run/user/1000
 # ---------------------------------------------------------------------------
 
-# Run main.py, filtering ONLY the harmless SDL "unrecognized key" spam
+# Run main.py from the uv-managed venv (`uv sync --locked`), filtering ONLY the harmless SDL "unrecognized key" spam
 # (BTN_TOUCH / EVDEV KeyCode 330 from the touchscreen). All other stderr —
 # real tracebacks and errors — passes through untouched to the journal.
-ExecStart=/bin/bash -c 'exec /usr/bin/python3 -u main.py 2> >(grep --line-buffered -v "not recognized by SDL" >&2)'
+ExecStart=/bin/bash -c 'exec /home/pi/Newtons-Cradle/.venv/bin/python -u main.py 2> >(grep --line-buffered -v "not recognized by SDL" >&2)'
 
 # Auto-restart on ANY exit (crash, clean quit, or admin "quit all").
 Restart=always
