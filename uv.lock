@@ -262,7 +262,7 @@ wheels = [
 
 [[package]]
 name = "dpeadpi"
-version = "2.0.4"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
@@ -270,9 +270,9 @@ dependencies = [
     { name = "rpi-lgpio", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
     { name = "smbus2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/54/05efda0ca890eb33d1dbb2623db38de07ead58573e3898bd04e289a029b5/dpeadpi-2.0.4.tar.gz", hash = "sha256:d891fd8e63a29afe80cd6988bc911606b67a7a1a2985e1dfdb1f6bd4487a838d", size = 57547, upload-time = "2026-10-15T19:44:35.362Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/6a/7ad45e7807f6d0bd4a2e1776f9fac2ad827be0c00257caddfdca970242d5/dpeadpi-3.1.0.tar.gz", hash = "sha256:d0ffcc6bceeefb8c82f3548fabeb3162dfaa87c7204c87e2abaeb8b3a1033ba6", size = 72714, upload-time = "2026-10-26T07:00:40.6Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/b3/aa0aa90eee12b9d74c45096250258a992f04e345b05bc73ecf7337a8dd90/dpeadpi-2.0.4-py3-none-any.whl", hash = "sha256:f654b84477ed75d1477f827c3e96cfd9f06dbfa23258852953752c31e28d3a43", size = 79127, upload-time = "2026-10-15T19:44:34.129Z" },
+    { url = "https://files.pythonhosted.org/packages/21/02/b6c0e62a588a1ab7d556e077aa11181919ebe344bb6d1467df089b453cf7/dpeadpi-3.1.0-py3-none-any.whl", hash = "sha256:584968d21279ff610c5da2a90550309a049906ad451f7c72b4a16699c7218f84", size = 93798, upload-time = "2026-10-26T07:00:38.992Z" },
 ]
 
 [[package]]
@@ -370,7 +370,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dpeadpi", specifier = "==2.0.4" },
+    { name = "dpeadpi", specifier = "==3.1.0" },
     { name = "kivy", specifier = "==2.3.1" },
     { name = "pidev", specifier = "==1.0" },
 ]
