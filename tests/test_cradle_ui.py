@@ -40,13 +40,6 @@ def counts():
     return cradle.num_left(), cradle.num_right()
 
 
-def known_bug(reason):
-    return pytest.mark.xfail(strict=True, reason=reason)
-
-
-SHORT_LEFT_SWIPE = known_bug("Ball.released() falls through to ball_touched() after a short left swipe")
-
-
 @pytest.fixture(autouse=True)
 def fresh_screen():
     for ball_string in cradle.get_balls():
@@ -127,9 +120,9 @@ def test_tap_on_a_resting_ball_selects_it_and_its_outer_neighbours(name, expecte
 
 
 @pytest.mark.parametrize("name,dx,expected", [
-    pytest.param("middle", -40, (3, 0), marks=SHORT_LEFT_SWIPE),
+    ("middle", -40, (3, 0)),
     ("middle", 40, (0, 3)),
-    pytest.param("middle-right", -40, (4, 0), marks=SHORT_LEFT_SWIPE),
+    ("middle-right", -40, (4, 0)),
     ("middle-left", 40, (0, 4)),
 ])
 def test_short_swipe_selects_the_same_balls_as_ball_left_or_right(name, dx, expected):
@@ -143,7 +136,6 @@ def test_touches_are_ignored_while_paused():
     assert counts() == (0, 0)
 
 
-@known_bug("the Back to Game button switches screens without calling back_action()")
 def test_back_to_game_clears_a_partial_password():
     main.sm.current = "admin"
     for digit in (1, 2):
@@ -156,7 +148,6 @@ def test_back_to_game_clears_a_partial_password():
     assert main.sm.current == "adminFunctionsScreen"
 
 
-@known_bug("VariableChanger has no lower bound")
 def test_cooldown_never_goes_below_zero(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main, "COOLDOWN_SECS", 0)
@@ -172,7 +163,6 @@ def test_offset_changes_reach_the_hardware_and_variables_json(monkeypatch, tmp_p
     assert '"offset_right"' in (tmp_path / "variables.json").read_text()
 
 
-@known_bug("back_action() homes but never disables the motors")
 def test_admin_back_leaves_motors_disabled(boards):
     admin_functions.back_action()
     for board in boards:
@@ -204,7 +194,6 @@ def test_scoop_sequence_scoops_the_selection_then_unlocks_after_cooldown(monkeyp
         assert not board.getStepperStatus(0).enabled
 
 
-@known_bug("run_scoop_sequence()'s except only covers scheduling, not the steps")
 def test_scoop_sequence_disables_motors_when_hardware_fails(monkeypatch, boards):
     clock, _ = run_scoop(monkeypatch, 0, 3)
 
