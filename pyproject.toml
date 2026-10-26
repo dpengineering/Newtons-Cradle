@@ -3,7 +3,7 @@ name = "newtons-cradle"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "dpeaDPi==2.0.4",
+    "dpeaDPi==3.1.0",
     "kivy==2.3.1",
     "pidev==1.0",
 ]
