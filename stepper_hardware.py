@@ -209,6 +209,21 @@ def double_home():
     motion_reset()
 
 
+def _axis_is_home(board, stepperNum):
+    status = board.getStepperStatus(stepperNum)
+    return status.stopped and status.at_home and board.getCurrentPositionInSteps(stepperNum) == 0
+
+
+def is_home():
+    return all(_axis_is_home(board, stepperNum) for board in (dpiStepper0, dpiStepper1) for stepperNum in (0, 1))
+
+
+def verify_home():
+    # Homing zeroes each counter where its switch closes, so an arm at 0 on a closed
+    # switch hasn't lost steps and homing it again would only cost time.
+    if not is_home():
+        double_home()
+
 
 # ============================== Scoop Functions ==============================
 def scoop(num_left, num_right):
@@ -245,6 +260,7 @@ def scoop(num_left, num_right):
     set_vertical_pos(0)
 
     back_to_home()
+    verify_home()
 
 def stop_balls(end_at_home=True):
     set_vertical_pos(0)

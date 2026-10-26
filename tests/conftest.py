@@ -42,3 +42,12 @@ def boards(monkeypatch, sim_state):
     yield right, left
     hw.set_offsets(**DEFAULT_OFFSETS)
 
+
+
+@pytest.fixture
+def homings(monkeypatch):
+    """Counts full homings, which verify_home should only run when an arm is off its switch."""
+    calls = []
+    double_home = hw.double_home
+    monkeypatch.setattr(hw, "double_home", lambda: (calls.append(1), double_home()))
+    return calls

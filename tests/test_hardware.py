@@ -133,3 +133,34 @@ def test_shutdown_paths_home_both_arms_and_disable_motors(boards, sim_state, mon
         for stepperNum in (H, V):
             assert board.getCurrentPositionInSteps(stepperNum) == 0
             assert not board.getStepperStatus(stepperNum).enabled
+
+
+def push_arm_off_its_switch(board, stepperNum, steps):
+    # The motor drives itself out, then the counter is renumbered so the controller still reads 0.
+    board.moveToAbsolutePositionInSteps(stepperNum, steps, True)
+    board.setCurrentPositionInSteps(stepperNum, 0)
+
+
+@pytest.mark.parametrize("num_left,num_right", COMBOS)
+def test_scoop_that_ends_home_does_not_rehome(boards, homings, num_left, num_right):
+    hw.scoop(num_left, num_right)
+    assert homings == []
+    assert hw.is_home()
+
+
+@pytest.mark.parametrize("board_index,stepperNum", [(0, H), (0, V), (1, H), (1, V)])
+def test_verify_home_rehomes_an_arm_pushed_off_its_switch(boards, homings, board_index, stepperNum):
+    push_arm_off_its_switch(boards[board_index], stepperNum, 400)
+    assert not hw.is_home()
+    hw.verify_home()
+    assert homings == [1]
+    for board in boards:
+        for axis in (H, V):
+            assert homed(board, axis)
+
+
+def test_scoop_rehomes_an_arm_that_ends_off_its_switch(boards, homings):
+    boards[0].setCurrentPositionInSteps(H, -300)
+    hw.scoop(0, 2)
+    assert homings == [1]
+    assert hw.is_home()
