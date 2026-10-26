@@ -1,513 +1,304 @@
 #!/usr/bin/python3
-import time
 import os
-os.environ["KIVY_NO_CONSOLELOG"] = "1" #Disables log in messaging on the console when booting up the project
 
-import json
-import logging
-from kivy.app import App
-from kivy.lang import Builder
-from Kivy.Scenes import AdminScreen
-from kivy.core.window import Window
-from kivy.properties import AliasProperty, ObjectProperty, NumericProperty
-from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.uix.button import Button
-from kivy.uix.floatlayout import FloatLayout
-from kivy.graphics import *
-from kivy.uix.popup import Popup
-from kivy.vector import Vector
-from kivy.uix.label import Label
-from kivy.uix.widget import Widget
-from kivy.uix.slider import Slider
-from kivy.uix.image import Image
-from kivy.uix.behaviors import ButtonBehavior
-from kivy.clock import Clock
+os.environ.setdefault("KIVY_NO_CONSOLELOG", "1")
+
+import subprocess
+import time
+
+import pidev.kivy  # noqa: F401  registers DPEAButton with Kivy's Factory
+from dpeaDPi.DPiStepper import DPiStepper
 from kivy.animation import Animation
-from functools import partial, wraps
-from kivy.config import Config
+from kivy.app import App
+from kivy.clock import Clock
 from kivy.core.window import Window
-try:
-    from pidev.kivy import DPEAButton
-    from pidev.kivy import PauseScreen
-    from pidev.MixPanel import MixPanel
-except ImportError:
-    DPEAButton = Button
+from kivy.lang import Builder
+from kivy.properties import BooleanProperty, NumericProperty, ObjectProperty, StringProperty
+from kivy.uix.screenmanager import Screen, ScreenManager
+from kivy.uix.widget import Widget
+from kivy.vector import Vector
+from pydantic import ValidationError
 
-    class PauseScreen(Widget):
-        pass
+from arms import CradleArms
+from config import Tuning
+from exhibit import OUTPUTS, Exhibit, Phase
+from Kivy.Scenes.AdminScreen import AdminScreen
 
-    class MixPanel:
-        def __init__(self, *args, **kwargs):
-            pass
-
-from stepper_hardware import *
-from time import sleep
-# from kivy.logger import Logger
-
-#Logger.setLevel("DEBUG")
-#logging.getLogger().setLevel(logging.DEBUG)
-
-# os.environ["KIVY_LOG_LEVEL"] = "warning"
-# Config.set("kivy", "log_level", "warning")
-"""
-Globals
-"""
 GESTURE_MIN_DELTA = 25
 GESTURE_MAX_DELTA = 75
 
-YELLOW = .180, 0.188, 0.980, 1
-BLUE = 0.917, 0.796, 0.380, 1
-AWAY_FROM_HOME = 1
-BACK_TO_HOME = -1
-
-COOLDOWN_SECS = 20 # Time to wait in between starting scoops, originally 40
-
-MAIN_SCREEN_NAME = 'main'
-
-MIXPANEL_TOKEN = "02f0373e5a3d6354fbc9d41d6b3a002a"
-
-"""
-DECLARE APP CLASS AND SCREENMANAGER
-LOAD KIVY FILE
-"""
-
-
-class MyApp(App):
-    def build(self):
-        """
-        Called upon launching application
-        :return: Screen Manager
-        """
-        return sm
-
-
 Builder.load_file('Kivy/Scenes/main.kv')
 Builder.load_file('Kivy/Libraries/DPEAButton.kv')
-Builder.load_file('Kivy/Scenes/PauseScene.kv')
 Builder.load_file('Kivy/Scenes/AdminScreen.kv')
-Window.clearcolor = (.9, .9, .9, 1)  # (OFF WHITE)
-
-
-"""
-PauseScene functions
-"""
-
-
-def pause(text, sec):
-    """
-    Pause the screen for a set amount of time
-    :param text: Text to display while the pause screen is visible
-    :param sec: Number of seconds to pause the screen for
-    :return: None
-    """
-    sm.transition.direction = 'left'
-    sm.current = 'pauseScene'
-    sm.current_screen.ids.pauseText.text = text
-    load = Animation(size=(10, 10), duration=0) + \
-           Animation(size=(150, 10), duration=sec)
-    load.start(sm.current_screen.ids.progressBar)
-
-
-def transition_back(original_scene):
-    """
-    Transition back to the previous scene
-    :param original_scene: The previous scene to transition back to
-    :return: None
-    """
-    sm.transition.direction = 'right'
-    sm.current = original_scene
-
-
-def disable_motors_on_failure(step):
-    @wraps(step)
-    def guarded(dt):
-        try:
-            return step(dt)
-        except BaseException:
-            disable_motors()
-            raise
-    return guarded
-
-
-def scoop_balls_thread(*largs):
-    main = sm.get_screen('main')
-
-    num_left = main.cradle.num_left()
-    num_right = main.cradle.num_right()
-
-    if num_right == 0 and num_left == 0:
-        return
-
-    if main.is_paused:
-        return
-    else:
-        main.pause()
-
-    @disable_motors_on_failure
-    def run_scoop_sequence(dt):
-        enable_motors()
-        Clock.schedule_once(step1, 0)
-
-    def step1(dt):
-        main.wait.text = "Homing..."
-        Clock.schedule_once(step2, 1)
-
-    @disable_motors_on_failure
-    def step2(dt):
-        verify_home()
-        main.wait.text = "Resetting..."
-        Clock.schedule_once(step3, 1)
-
-    @disable_motors_on_failure
-    def step3(dt):
-        stop_balls(num_left == 0 or num_right == 0)
-        main.wait.text = "Scooping..."
-        Clock.schedule_once(step4, 1)
-
-    @disable_motors_on_failure
-    def step4(dt):
-        scoop(num_left, num_right)
-        main.wait.text = "Enjoying..."
-        Clock.schedule_once(step5, 1)
-
-    def step5(dt):
-        disable_motors()
-        Clock.schedule_once(lambda dt: main.unpause(), COOLDOWN_SECS)
-
-    Clock.schedule_once(run_scoop_sequence, 1) #wait a second to allow the wait widget to finish updating before starting the scoop sequence
-
-
-sm = ScreenManager()
-
-
-class MainScreen(Screen):
-    cradle = ObjectProperty(None)
-    execute = ObjectProperty(None)
-    hint = ObjectProperty(None)
-    progress = ObjectProperty(None)
-    wait = ObjectProperty(None)
-
-    is_paused = False
-
-    fade_out = Animation(opacity=0, t="out_quad")
-    fade_in = Animation(opacity=1, t="out_quad")
-
-    @staticmethod
-    def admin_action():
-        sm.current = 'admin'
-
-    # def close_application(self):
-    #     # closing application
-    #     # App.get_running_app().stop()
-    #     MyApp.
-    #     # removing window
-    #     Window.close()
-
-    def scoop_call_back(self):
-        Clock.schedule_once(scoop_balls_thread, 0)
-
-    def set_visible(self, widget):
-        if self.is_paused:
-            return
-
-        Animation.cancel_all(self.hint)
-        Animation.cancel_all(self.execute)
-        # Animation.cancel_all(self.progress)
-        Animation.cancel_all(self.wait)
-
-        MainScreen.fade_out.start(self.hint)
-        MainScreen.fade_out.start(self.execute)
-        # MainScreen.fade_out.start(self.progress)
-        MainScreen.fade_out.start(self.wait)
-
-        Animation.cancel_all(widget)
-        MainScreen.fade_in.start(widget)
-
-    def pause(self):
-        Ball.interactive = False
-        self.set_visible(self.wait)
-        self.is_paused = True
-
-    def unpause(self):
-        Ball.interactive = True
-        self.cradle.reset_balls()
-        self.is_paused = False
-        self.set_visible(self.hint)
-
-    def update_button(self):
-        l = self.cradle.num_left()
-        r = self.cradle.num_right()
-
-        if l == 0 and r == 0:
-            self.set_visible(self.hint)
-        else:
-            self.set_visible(self.execute)
+Window.clearcolor = (.9, .9, .9, 1)
 
 
 class Ball(Widget):
-    interactive = True
-    down_exists = False
-    down = ObjectProperty((0, 0))
+    down = ObjectProperty(None, allownone=True)
+
+    @property
+    def string(self):
+        return self.parent
+
+    @property
+    def cradle(self):
+        return self.parent.parent
 
     def transform_point(self, v):
-        v -= Vector(self.parent.pos)
-        v = v.rotate(-self.parent.rotation)
-        v += Vector(self.parent.pos)
-        return v
+        origin = Vector(self.string.pos)
+        return (v - origin).rotate(-self.string.rotation) + origin
 
     def clear(self):
-        self.down = (0, 0)
-        Ball.down_exists = False
+        self.down = None
+        self.cradle.active_ball = None
 
     def pushed(self, touch):
-        pos = touch.pos
-        v = self.transform_point(Vector(pos))
-        if self.collide_point(v.x, v.y) and (not Ball.down_exists) and Ball.interactive:
+        v = self.transform_point(Vector(touch.pos))
+        cradle = self.cradle
+        if cradle.interactive and cradle.active_ball is None and self.collide_point(v.x, v.y):
             self.down = v
-            Ball.down_exists = True
+            cradle.active_ball = self
 
     def moved(self, touch):
-        p = self.parent
-        pos = touch.pos
-        v = self.transform_point(Vector(pos))
-
-        if self.down != (0, 0):
-            d = v - Vector(self.down)
-            if d.length() >= GESTURE_MAX_DELTA:
-                if d.x >= GESTURE_MIN_DELTA:
-                    self.parent.parent.ball_right(p)
-                    self.clear()
-                elif d.x <= -GESTURE_MIN_DELTA:
-                    self.parent.parent.ball_left(p)
-                    self.clear()
+        if self.down is None:
+            return
+        d = self.transform_point(Vector(touch.pos)) - self.down
+        if d.length() >= GESTURE_MAX_DELTA:
+            self.swipe(d.x)
 
     def released(self, touch):
-        p = self.parent
-        pos = touch.pos
-        v = self.transform_point(Vector(pos))
-
-        if self.down != (0, 0):
-            d = v - Vector(self.down)
-            if d.x >= GESTURE_MIN_DELTA:
-                self.parent.parent.ball_right(p)
-                self.clear()
-                return
-            elif d.x <= -GESTURE_MIN_DELTA:
-                self.parent.parent.ball_left(p)
-                self.clear()
-                return
-            self.parent.parent.ball_touched(p)
+        if self.down is None:
+            return
+        d = self.transform_point(Vector(touch.pos)) - self.down
+        if not self.swipe(d.x):
+            self.cradle.ball_touched(self.string)
             self.clear()
+
+    def swipe(self, dx):
+        if dx >= GESTURE_MIN_DELTA:
+            self.cradle.ball_right(self.string)
+        elif dx <= -GESTURE_MIN_DELTA:
+            self.cradle.ball_left(self.string)
+        else:
+            return False
+        self.clear()
+        return True
 
 
 class BallString(Widget):
-    rotation = ObjectProperty(0)
-    ball = ObjectProperty(None)
-    name = ObjectProperty("middle")
+    rotation = NumericProperty(0)
+    name = StringProperty("middle")
     ROT_LEFT = -35
     ROT_RIGHT = 35
     ROT_DOWN = 0
-    a_down = Animation(rotation=ROT_DOWN, t="out_quad")
-    a_left = Animation(rotation=ROT_LEFT, t="out_quad")
-    a_right = Animation(rotation=ROT_RIGHT, t="out_quad")
-    r = ObjectProperty(ROT_DOWN)
+    r = NumericProperty(ROT_DOWN)
+
+    def _swing(self, rotation):
+        Animation.cancel_all(self)
+        Animation(rotation=rotation, t="out_quad").start(self)
+        self.r = rotation
 
     def down(self):
-        Animation.cancel_all(self)
-        BallString.a_down.start(self)
-        self.r = BallString.ROT_DOWN
+        self._swing(BallString.ROT_DOWN)
 
     def left(self):
-        Animation.cancel_all(self)
-        BallString.a_left.start(self)
-        self.r = BallString.ROT_LEFT
+        self._swing(BallString.ROT_LEFT)
 
     def right(self):
-        Animation.cancel_all(self)
-        BallString.a_right.start(self)
-        self.r = BallString.ROT_RIGHT
+        self._swing(BallString.ROT_RIGHT)
+
+
+# A tap on a resting ball pulls it toward the nearer side, the middle ball going right.
+TAP_PULLS_LEFT = {"left": True, "middle-left": True, "middle": False, "middle-right": False, "right": False}
 
 
 class Cradle(Widget):
+    """The five strings, left to right. Left-pulled balls are always a prefix of that order and
+    right-pulled balls a suffix, with the outermost ball on each side never pulled across."""
+
+    interactive = BooleanProperty(True)
+    active_ball = ObjectProperty(None, allownone=True)
+    __events__ = ("on_selection",)
+
+    def on_selection(self):
+        pass
+
+    def strings(self):
+        return self.children[::-1]
+
     def num_left(self):
-        return sum(ball.r == BallString.ROT_LEFT for ball in self.get_balls())
+        return sum(string.r == BallString.ROT_LEFT for string in self.strings())
 
     def num_right(self):
-        return sum(ball.r == BallString.ROT_RIGHT for ball in self.get_balls())
+        return sum(string.r == BallString.ROT_RIGHT for string in self.strings())
 
     def reset_balls(self):
-        balls = self.get_balls()
-        self.ball_down(balls[0])
-        self.ball_down(balls[-1])
-
-    def get_balls(self):
-        return self.children
+        for string in self.strings():
+            string.down()
+        self.dispatch("on_selection")
 
     def ball_right(self, ball_string):
         if ball_string.r == BallString.ROT_LEFT:
             self.ball_down(ball_string)
             return
-        balls = self.get_balls()[::-1]
-        i = balls.index(ball_string)
-        for ball in balls[i:]:
-            if ball.name == "left":
-                ball.down()
-            else:
-                ball.right()
-        sm.get_screen("main").update_button()
+        strings = self.strings()
+        for string in strings[strings.index(ball_string):]:
+            string.down() if string.name == "left" else string.right()
+        self.dispatch("on_selection")
 
     def ball_left(self, ball_string):
         if ball_string.r == BallString.ROT_RIGHT:
             self.ball_down(ball_string)
             return
-        balls = self.get_balls()
-        i = balls.index(ball_string)
-        for ball in balls[i:]:
-            if ball.name == "right":
-                ball.down()
-            else:
-                ball.left()
-        sm.get_screen("main").update_button()
+        strings = self.strings()
+        for string in strings[:strings.index(ball_string) + 1]:
+            string.down() if string.name == "right" else string.left()
+        self.dispatch("on_selection")
 
     def ball_down(self, ball_string):
-        if ball_string.r == BallString.ROT_LEFT:
-            balls = self.get_balls()[::-1]
-            i = balls.index(ball_string)
-            for ball in balls[i:]:
-                if ball.r != BallString.ROT_LEFT:
-                    break
-                ball.down()
-        elif ball_string.r == BallString.ROT_RIGHT:
-            balls = self.get_balls()
-            i = balls.index(ball_string)
-            for ball in balls[i:]:
-                if ball.r != BallString.ROT_RIGHT:
-                    break
-                ball.down()
-        sm.get_screen("main").update_button()
+        # Lowering a ball also lowers every pulled ball between it and the middle.
+        strings = self.strings()
+        i = strings.index(ball_string)
+        side = ball_string.r
+        if side == BallString.ROT_LEFT:
+            inward = strings[i:]
+        elif side == BallString.ROT_RIGHT:
+            inward = strings[i::-1]
+        else:
+            inward = []
+        for string in inward:
+            if string.r != side:
+                break
+            string.down()
+        self.dispatch("on_selection")
 
     def ball_touched(self, ball_string):
-        if ball_string.r == BallString.ROT_DOWN:
-            if ball_string.name == "left":
-                self.ball_left(ball_string)
-            elif ball_string.name == "middle-left":
-                self.ball_left(ball_string)
-            elif ball_string.name == "middle":
-                self.ball_right(ball_string)
-            elif ball_string.name == "middle-right":
-                self.ball_right(ball_string)
-            elif ball_string.name == "right":
-                self.ball_right(ball_string)
-        else:
+        if ball_string.r != BallString.ROT_DOWN:
             self.ball_down(ball_string)
-        sm.get_screen("main").update_button()
+        elif TAP_PULLS_LEFT[ball_string.name]:
+            self.ball_left(ball_string)
+        else:
+            self.ball_right(ball_string)
 
 
-class MyProgressBar(Widget):
-    value = NumericProperty(0)
+class MainScreen(Screen):
+    exhibit = ObjectProperty(None)
+    cradle = ObjectProperty(None)
+    execute = ObjectProperty(None)
+    hint = ObjectProperty(None)
+    wait = ObjectProperty(None)
 
+    def show(self, widget):
+        for other in (self.hint, self.execute, self.wait):
+            Animation.cancel_all(other)
+            Animation(opacity=0, t="out_quad").start(other)
+        Animation.cancel_all(widget)
+        Animation(opacity=1, t="out_quad").start(widget)
 
-# Default admin-tunable offsets; overridden by variables.json when present.
-# These mirror the hardware defaults in stepper_hardware.py so the admin
-# changers always have a value to show and edit (never None).
-OFFSET_DEFAULTS = {
-    "offset_left": -4,
-    "offset_right": 9,
-    "offset_v_left": 0,
-    "offset_v_right": 0,
-}
+    def show_phase(self, phase):
+        self.cradle.interactive = OUTPUTS[phase].accepts_input
+        if phase is Phase.READY:
+            self.cradle.reset_balls()
+        else:
+            self.wait.text = OUTPUTS[phase].label
+            self.show(self.wait)
 
-variables_dict = {}
-if os.path.exists("variables.json"):
-    with open("variables.json") as o:
-        variables_dict = json.loads(o.read())
+    def update_button(self):
+        if not self.cradle.interactive:
+            return
+        if self.cradle.num_left() or self.cradle.num_right():
+            self.show(self.execute)
+        else:
+            self.show(self.hint)
 
-    for v in variables_dict.keys():
-        globals()[v] = variables_dict[v]
-
-# Seed any offset the file didn't supply so the changers never read None.
-for _k, _default in OFFSET_DEFAULTS.items():
-    globals().setdefault(_k, _default)
-
-
-def apply_offsets_to_hardware():
-    # Push the admin tuning globals into the hardware module so the scoop
-    # actually uses them (see stepper_hardware.set_offsets). Called at startup
-    # and after every admin edit.
-    set_offsets(
-        offset_left=globals().get("offset_left"),
-        offset_right=globals().get("offset_right"),
-        offset_v_left=globals().get("offset_v_left"),
-        offset_v_right=globals().get("offset_v_right"),
-    )
-
-
-apply_offsets_to_hardware()
+    def start_pressed(self):
+        self.exhibit.request_scoop(self.cradle.num_left(), self.cradle.num_right())
 
 
 class VariableChanger(Widget):
-    name = ObjectProperty(None)
-    label = ObjectProperty(None)
-    minimum = NumericProperty(None, allownone=True)
+    name = StringProperty("")
+    tuning = ObjectProperty(None)
+    value = NumericProperty(0)
 
-    def get_value(self):
-        return globals().get(self.name, None)
+    def on_tuning(self, *args):
+        self.refresh()
 
-    def inc_value(self):
-        self.set_value(self.get_value() + 1)
+    def on_name(self, *args):
+        self.refresh()
 
-    def dec_value(self):
-        self.set_value(self.get_value() - 1)
+    def refresh(self):
+        if self.tuning is not None and self.name:
+            self.value = getattr(self.tuning, self.name)
 
-    def set_value(self, value):
-        if self.minimum is not None:
-            value = max(value, self.minimum)
-        globals()[self.name] = value
-        variables_dict[self.name] = value
-        self.label.text = self.name + ": " + str(self.get_value())
-        self.save_value()
-        # Keep the hardware in sync when an offset is changed (no-op for other
-        # variables like COOLDOWN_SECS, which the hardware doesn't read).
-        apply_offsets_to_hardware()
-
-    def save_value(self):
-        with open("variables.json", "w+") as o:
-            o.write(json.dumps(variables_dict))
+    def step(self, delta):
+        try:
+            setattr(self.tuning, self.name, self.value + delta)
+        except ValidationError:
+            return
+        self.tuning.save()
+        self.refresh()
 
 
-class adminFunctionsScreen(Screen):
-    @staticmethod
-    def quit_action():
-        # "Restart": quits the app; the systemd service restarts it.
-        admin_quit_all()
+class AdminFunctionsScreen(Screen):
+    exhibit = ObjectProperty(None)
+    tuning = ObjectProperty(None)
+    restart = ObjectProperty(None)
+    shutdown = ObjectProperty(None)
 
-    @staticmethod
-    def shutdown_action():
-        # "Quit": truly stops the exhibit via `systemctl stop` (no restart).
-        shutdown_service()
+    def restart_action(self):
+        self.exhibit.request_exit(self.restart)
+        self.manager.current = 'main'
 
-    @staticmethod
-    def back_action():
-        double_home()
-        disable_motors()
-        sm.current = 'main'
+    def shutdown_action(self):
+        self.exhibit.request_exit(self.shutdown)
+        self.manager.current = 'main'
+
+    def back_action(self):
+        self.exhibit.request_return()
+        self.manager.current = 'main'
 
 
-sm.add_widget(MainScreen(name='main'))
-sm.add_widget(AdminScreen.AdminScreen(name='admin'))
-sm.add_widget(adminFunctionsScreen(name='adminFunctionsScreen'))
+def build_screens(exhibit, restart, shutdown):
+    sm = ScreenManager()
+    main_screen = MainScreen(name='main', exhibit=exhibit)
+    sm.add_widget(main_screen)
+    sm.add_widget(AdminScreen(name='admin'))
+    sm.add_widget(AdminFunctionsScreen(name='adminFunctionsScreen', exhibit=exhibit, tuning=exhibit.arms.tuning,
+                                       restart=restart, shutdown=shutdown))
+    exhibit.on_phase = main_screen.show_phase
+    return sm
 
-mixpanel = MixPanel("Newtons Cradle", MIXPANEL_TOKEN)
-# ////////////////////////////////////////////////////////////////
-# //                          RUN APP                           //
-# ////////////////////////////////////////////////////////////////
+
+def stop_service():
+    # systemd stops this unit, so it doesn't restart. Needs the sudoers rule in the README.
+    subprocess.Popen(["sudo", "systemctl", "stop", "newtons-cradle.service"])
+
+
+class NewtonsCradleApp(App):
+    def __init__(self, exhibit, shutdown=stop_service, **kwargs):
+        super().__init__(**kwargs)
+        self.exhibit = exhibit
+        self.shutdown = shutdown
+
+    def build(self):
+        # Restart just ends the app, and systemd's Restart=always starts it again.
+        sm = build_screens(self.exhibit, restart=self.stop, shutdown=self.shutdown)
+        self.exhibit.start()
+        Clock.schedule_interval(lambda dt: self.exhibit.tick(), 0)
+        return sm
+
+
+def open_boards():
+    right, left = DPiStepper(), DPiStepper()
+    right.setBoardNumber(0)
+    left.setBoardNumber(1)
+    return right, left
+
+
 if __name__ == "__main__":
+    right, left = open_boards()
+    arms = CradleArms(right, left, Tuning.load(), time.monotonic)
     try:
-        init_hardware()
-        double_home()
-        disable_motors()
-        MyApp().run()
+        NewtonsCradleApp(Exhibit(arms, time.monotonic)).run()
     except KeyboardInterrupt:
-        quit_all()
-
-
+        arms.enable_motors(False)

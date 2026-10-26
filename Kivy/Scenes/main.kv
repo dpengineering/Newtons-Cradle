@@ -1,22 +1,8 @@
-<MyProgressBar>:
-    canvas:
-        Color:
-            rgb: 0.8, 0.8, 0.8
-        RoundedRectangle:
-            pos: self.x, self.y
-            size: self.width, self.height
-        Color:
-            rgb: 0, 0, 1
-        RoundedRectangle:
-            pos: self.x, self.y
-            size: self.width * (self.value / 100.0), self.height
-
-
 <VariableChanger>:
     label: label
     Label:
         id: label
-        text: (root.name if root.name else "???")+ ": " + str(root.get_value())
+        text: root.name + ": " + str(root.value)
         size: 80, 80
         center_x: root.center_x
         center_y: root.center_y + 40
@@ -31,7 +17,7 @@
         center_y: root.center_y - 80
         color: 1,0,0,1
         background_color: 0, 0, 0, 0
-        on_release: root.inc_value()
+        on_release: root.step(1)
     DPEAButton:
         background_normal: ''
         size_hint: None,None
@@ -41,7 +27,7 @@
         center_y: root.center_y - 80
         color: 1,0,0,1
         background_color: 0, 0, 0, 0
-        on_release: root.dec_value()
+        on_release: root.step(-1)
 
 
 <Ball>:
@@ -114,7 +100,6 @@
     name: 'main'
     cradle: cradle
     execute: execute
-    progress: progress
     wait: wait
     hint: hint
     FloatLayout:
@@ -136,6 +121,7 @@
 
         Cradle:
             id: cradle
+            on_selection: root.update_button()
             center_x: root.center_x
             center_y: root.center_y + 250
 
@@ -151,8 +137,7 @@
             y: root.height * 0.05
             color: 0,1,0,1
             background_color: 0, 0, 0, 0
-            on_touch_up: root.update_button()
-            on_release: root.scoop_call_back()
+            on_release: root.start_pressed()
 
         Label:
             id: hint
@@ -163,16 +148,6 @@
             color: 0.3,0.3,0.3,1
             font_size: 40
 
-        MyProgressBar:
-            id: progress
-            opacity: 0
-            size_hint: None,None
-            max: 100
-            size: 800, 30
-            center_x: root.width * .50
-            y: root.height * 0.05
-            color: 0,1,0,1
-            background_color: 0, 0, 0, 0
 
         Label:
             id: wait
@@ -190,36 +165,39 @@
             font_size: 20
             background_color: 0.5, 0, 0, 0
             center: root.width -5, 5
-            on_release: root.admin_action()
+            on_release: root.manager.current = 'admin'
 
 
-<adminFunctionsScreen>:
-    name: 'adminFunctionsScreen'
+<AdminFunctionsScreen>:
     FloatLayout:
         size_hint: None, None
         VariableChanger:
             name: "offset_left"
+            tuning: root.tuning
             size_hint: None,None
             center_x: root.width * .15
-			center_y: root.height * .85
+            center_y: root.height * .85
         VariableChanger:
             name: "offset_v_left"
+            tuning: root.tuning
             size_hint: None,None
             center_x: root.width * .30
-			center_y: root.height * .85
+            center_y: root.height * .85
         VariableChanger:
             name: "offset_v_right"
+            tuning: root.tuning
             size_hint: None,None
             center_x: root.width * .70
-			center_y: root.height * .85
+            center_y: root.height * .85
         VariableChanger:
             name: "offset_right"
+            tuning: root.tuning
             size_hint: None,None
             center_x: root.width * .85
             center_y: root.height * .85
         VariableChanger:
-            name: "COOLDOWN_SECS"
-            minimum: 0
+            name: "cooldown_secs"
+            tuning: root.tuning
             size_hint: None,None
             center_x: root.width * .50
             center_y: root.height * .85
@@ -232,7 +210,7 @@
             background_color: 0, 0, 0, 0
             center_x: root.width * .20
             center_y: root.height * .30
-            on_release: root.quit_action()
+            on_release: root.restart_action()
         DPEAButton:
             size_hint: None,None
             background_normal: ''
@@ -253,9 +231,3 @@
             center_x: root.width * .80
             center_y: root.height * .30
             on_release: root.back_action()
-
-
-
-
-
-

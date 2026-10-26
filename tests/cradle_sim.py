@@ -55,3 +55,21 @@ class CradleStepper(SimulatedDPiStepper):
     def moveToRelativePositionInSteps(self, stepperNum, distanceToMoveInSteps, waitToFinishFlg):
         self._record_move(stepperNum, self.getCurrentPositionInSteps(stepperNum) + distanceToMoveInSteps)
         super().moveToRelativePositionInSteps(stepperNum, distanceToMoveInSteps, waitToFinishFlg)
+
+
+FRAME_SECONDS = 0.016
+
+
+def run(sim_state, tick, until, limit=300.0):
+    """Tick once per simulated frame until `until()` holds."""
+    deadline = sim_state.clock.now() + limit
+    while not until():
+        assert sim_state.clock.now() < deadline, "still running after %.0f simulated seconds" % limit
+        tick()
+        sim_state.clock.advance(FRAME_SECONDS)
+
+
+def push_off_switch(board, stepper, steps):
+    # The axis drives itself out and the counter is renumbered, so the board still reads 0.
+    board.moveToAbsolutePositionInSteps(stepper, steps, True)
+    board.setCurrentPositionInSteps(stepper, 0)

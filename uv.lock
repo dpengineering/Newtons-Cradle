@@ -453,6 +453,7 @@ dependencies = [
     { name = "dpeadpi" },
     { name = "kivy" },
     { name = "pidev" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
@@ -466,6 +467,7 @@ requires-dist = [
     { name = "dpeadpi", specifier = "==3.1.0" },
     { name = "kivy", specifier = "==2.3.1" },
     { name = "pidev", specifier = "==1.0" },
+    { name = "pydantic", specifier = "==2.14.1" },
 ]
 
 [package.metadata.requires-dev]
