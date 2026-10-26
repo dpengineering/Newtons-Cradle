@@ -62,7 +62,6 @@ service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
 |------|---------|
 | `main.py` | Kivy app: touchscreen UI, ball gesture logic, scoop orchestration. Entry point. |
 | `stepper_hardware.py` | Hardware API over the two DPiStepper boards (`init_hardware`, `scoop`, `home`, `double_home`, `stop_balls`, ...). |
-| `moveBothToHome.py` | Homing routines against the axis home switches. |
 | `Kivy/` | `.kv` layouts, `AdminScreen`, and images. |
 | `variables.json` | Per-machine live tuning (offsets + cooldown), written by the admin UI. Git-ignored; copied from `variables.example.json`. |
 | `variables.example.json` | Tracked default template for `variables.json`. |

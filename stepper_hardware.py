@@ -2,7 +2,6 @@
 import subprocess
 from time import sleep, time
 
-from moveBothToHome import moveBothToHomeInSteps
 from dpeaDPi.DPiStepper import *
 
 
@@ -197,13 +196,13 @@ def double_home():
     directionToMoveTowardHome = BACK_TO_HOME
     homeSpeedInStepsPerSecond = speed_steps_per_second * 2.5
     homeMaxDistanceToMoveInSteps = 50000
-    moveBothToHomeInSteps(dpiStepper0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                          homeMaxDistanceToMoveInSteps, directionToMoveTowardHome,
-                          homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
-
-    moveBothToHomeInSteps(dpiStepper1, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
-                          homeMaxDistanceToMoveInSteps, directionToMoveTowardHome,
-                          homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+    for board, dpiStepper in enumerate([dpiStepper0, dpiStepper1]):
+        dpiStepper.moveBothToHomeInSteps(board, 0, directionToMoveTowardHome, homeSpeedInStepsPerSecond,
+                                         homeMaxDistanceToMoveInSteps, 1, directionToMoveTowardHome,
+                                         homeSpeedInStepsPerSecond, homeMaxDistanceToMoveInSteps)
+        # Unlike moveToHomeInSteps, the driver's dual homing leaves the counters where they were.
+        dpiStepper.setCurrentPositionInSteps(0, 0)
+        dpiStepper.setCurrentPositionInSteps(1, 0)
 
     speed_reset()
 
