@@ -14,7 +14,6 @@ _import_state = SimState()
 _import_board_numbers = itertools.count()
 dpeaDPi.DPiStepper.DPiStepper = lambda: CradleStepper(_import_state, next(_import_board_numbers))
 
-import moveBothToHome  # noqa: E402
 import stepper_hardware as hw  # noqa: E402
 
 DEFAULT_OFFSETS = dict(
@@ -26,15 +25,18 @@ DEFAULT_OFFSETS = dict(
 
 
 @pytest.fixture
-def boards(monkeypatch):
+def sim_state():
+    return SimState()
+
+
+@pytest.fixture
+def boards(monkeypatch, sim_state):
     """Fresh simulated right (board 0) and left (board 1) arms, initialized like the app does."""
-    state = SimState()
-    right, left = CradleStepper(state, 0), CradleStepper(state, 1)
+    right, left = CradleStepper(sim_state, 0), CradleStepper(sim_state, 1)
     monkeypatch.setattr(hw, "dpiStepper0", right)
     monkeypatch.setattr(hw, "dpiStepper1", left)
-    monkeypatch.setattr(hw, "sleep", state.clock.advance)
-    monkeypatch.setattr(hw, "time", state.clock.now)
-    monkeypatch.setattr(moveBothToHome, "sleep", state.clock.advance)
+    monkeypatch.setattr(hw, "sleep", sim_state.clock.advance)
+    monkeypatch.setattr(hw, "time", sim_state.clock.now)
     hw.set_offsets(**DEFAULT_OFFSETS)
     hw.init_hardware()
     yield right, left

@@ -2,7 +2,6 @@ import pytest
 from hypothesis import given, strategies as st
 
 import stepper_hardware as hw
-from cradle_sim import settle
 
 STEPS_PER_MM = 64
 H, V = 0, 1
@@ -14,9 +13,12 @@ def known_bug(reason):
 
 
 RIGHT_ARM_NOT_AWAITED = known_bug("the right arm's moves are fired without waiting when the left arm or the release also moves")
+# Combos where the right arm is still moving when its next command is sent. In the
+# others the left arm's blocking moves happen to take long enough to cover it.
+RIGHT_ARM_STILL_MOVING = {(0, 5), (1, 1), (1, 2), (1, 3), (2, 2), (3, 1)}
 SCOOP_COMBOS = [
-    pytest.param(left, right, marks=RIGHT_ARM_NOT_AWAITED) if (left and right) or right == 5 else (left, right)
-    for left, right in COMBOS
+    pytest.param(*combo, marks=RIGHT_ARM_NOT_AWAITED) if combo in RIGHT_ARM_STILL_MOVING else combo
+    for combo in COMBOS
 ]
 OFFSETS = st.integers(min_value=-30, max_value=30)
 
@@ -25,10 +27,17 @@ def arm_moves(boards):
     return [move for board in boards for move in board.moves]
 
 
-def start_away_from_home(*boards):
+def start_away_from_home(sim_state, *boards):
     for board in boards:
         for stepperNum in (H, V):
-            board.setCurrentPositionInSteps(stepperNum, 3000)
+            board.moveToAbsolutePositionInSteps(stepperNum, 3000, False)
+    sim_state.run_until_idle()
+
+
+def scoop_duration(sim_state, num_left, num_right):
+    start = sim_state.clock.now()
+    hw.scoop(num_left, num_right)
+    return sim_state.clock.now() - start
 
 
 def homed(board, stepperNum):
@@ -96,8 +105,8 @@ def test_scoop_reaches_balls_with_horizontal_offsets(boards, num_left, num_right
             assert reach == (hw.DISTANCE_TO_FIRST_BALL + count * hw.BALL_DIAMETER + offset) * STEPS_PER_MM
 
 
-def test_double_home_zeroes_every_axis_on_its_switch(boards):
-    start_away_from_home(*boards)
+def test_double_home_zeroes_every_axis_on_its_switch(boards, sim_state):
+    start_away_from_home(sim_state, *boards)
     hw.double_home()
     for board in boards:
         for stepperNum in (H, V):
@@ -107,20 +116,17 @@ def test_double_home_zeroes_every_axis_on_its_switch(boards):
 @known_bug("homing sets acceleration to the homing speed and speed_reset() only restores speed")
 @pytest.mark.parametrize("home", [hw.double_home, lambda: (hw.home(0), hw.home(1))], ids=["double_home", "home"])
 @pytest.mark.parametrize("num_left,num_right", [(1, 0), (2, 3)])
-def test_scoop_after_homing_uses_configured_acceleration(boards, home, num_left, num_right):
-    start_away_from_home(*boards)
+def test_scoop_after_homing_runs_as_fast_as_after_startup(boards, sim_state, home, num_left, num_right):
+    after_startup = scoop_duration(sim_state, num_left, num_right)
+    start_away_from_home(sim_state, *boards)
     home()
-    for board in boards:
-        board.moves.clear()
-    hw.scoop(num_left, num_right)
-    expected = hw.accel_in_mm_per_sec_per_sec * STEPS_PER_MM
-    assert {move.acceleration for move in arm_moves(boards)} == {expected}
+    assert scoop_duration(sim_state, num_left, num_right) == pytest.approx(after_startup)
 
 
 @known_bug("double_home() ignores the False that moveBothToHomeInSteps returns")
-def test_double_home_raises_when_a_switch_never_closes(boards):
-    start_away_from_home(*boards)
-    boards[1].stuck_open_switches.add(H)
+def test_double_home_raises_when_a_switch_never_closes(boards, sim_state):
+    start_away_from_home(sim_state, *boards)
+    boards[1].disconnect_switch(H)
     with pytest.raises(RuntimeError, match="(?i)hom"):
         hw.double_home()
 
@@ -134,12 +140,12 @@ def test_wait_raises_when_a_motor_never_stops(boards):
 
 @known_bug("home() defaults to board 0, so the left arm is never homed")
 @pytest.mark.parametrize("shutdown", ["quit_all", "admin_quit_all", "shutdown_service"])
-def test_shutdown_paths_home_both_arms_and_disable_motors(boards, monkeypatch, shutdown):
-    start_away_from_home(*boards)
+def test_shutdown_paths_home_both_arms_and_disable_motors(boards, sim_state, monkeypatch, shutdown):
+    start_away_from_home(sim_state, *boards)
     monkeypatch.setattr(hw.subprocess, "Popen", lambda *args, **kwargs: None)
     monkeypatch.setattr(hw, "quit", lambda: None, raising=False)
     getattr(hw, shutdown)()
-    settle(*boards)
+    sim_state.run_until_idle()
     for board in boards:
         for stepperNum in (H, V):
             assert board.getCurrentPositionInSteps(stepperNum) == 0
