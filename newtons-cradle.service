@@ -1,7 +1,5 @@
 [Unit]
 Description=Newton's Cradle Exhibit (Kivy touchscreen app)
-# Wait for basic system + local filesystems to be up before starting.
-After=multi-user.target
 # Never give up restarting, no matter how many times it crashes (see Restart= below).
 StartLimitIntervalSec=0
 

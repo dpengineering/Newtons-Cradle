@@ -8,7 +8,8 @@ conservation of momentum.
 ## Hardware
 
 - **Raspberry Pi** running the Kivy touchscreen app.
-- **4 stepper motors** across **two DPiStepper boards** (`dpeaDPi` library):
+- **4 stepper motors** across **two DPiStepper boards** (`dpeaDPi` library). A
+  board has three drivers, so the four motors need both:
   - Board 0 = right arm, Board 1 = left arm.
   - On each board: stepper 0 = horizontal axis, stepper 1 = vertical axis.
 - **Home/limit switches** on each axis, used by the homing routine.
@@ -63,60 +64,79 @@ uv sync --locked
 uv run pytest
 ```
 
-`tests/` runs `stepper_hardware.py` and the Kivy screens against `dpeaDPi`'s
-`SimulatedDPiStepper`, which replays the board firmware's acceleration ramp and
-homing, with each axis's home switch mounted at position 0. No boards are
-needed.
+`tests/` runs the arms, the exhibit state machine and the Kivy screens against
+`dpeaDPi`'s `SimulatedDPiStepper`, which replays the board firmware's
+acceleration ramp, with each axis's home switch mounted at position 0. No
+boards are needed.
+
+To try the touchscreen without the boards, run the app against the simulator in
+real time:
+
+```bash
+uv run python run_simulated.py
+```
 
 ## Code layout
 
 | File | Purpose |
 |------|---------|
-| `main.py` | Kivy app: touchscreen UI, ball gesture logic, scoop orchestration. Entry point. |
-| `stepper_hardware.py` | Hardware API over the two DPiStepper boards (`init_hardware`, `scoop`, `home`, `double_home`, `stop_balls`, ...). |
+| `main.py` | Entry point. Kivy screens, ball gestures, and the admin screens, driven by `Exhibit`. |
+| `exhibit.py` | `Exhibit`, the visitor-facing state machine. Each `Phase` has fixed outputs (label, whether touches count, motor power) and starts that phase's arm motion. |
+| `arms.py` | `CradleArms`, the two scooper arms over two `StepperDriver` boards: homing, `stop_balls` and `scoop` as plans of motion steps. |
+| `motion.py` | `MotionRunner`, which runs a plan one step at a time without blocking, and the step parts (`MoveTo`, `SeekSwitch`, `Settle`, `Do`). |
+| `config.py` | Geometry, speeds and homing constants, and `Tuning`, the validated per-machine trims stored in `variables.json`. |
 | `Kivy/` | `.kv` layouts, `AdminScreen`, and images. |
 | `variables.json` | Per-machine live tuning (offsets + cooldown), written by the admin UI. Git-ignored; copied from `variables.example.json`. |
 | `variables.example.json` | Tracked default template for `variables.json`. |
 | `newtons-cradle.service` | systemd unit that runs the app at boot. |
-| `test_steppers.py` | CLI for driving/testing the steppers directly on the device. |
-| `test_ui.py` | Runs the Kivy UI with hardware stubbed out (for machines without the boards). |
+| `stepper_cli.py` | CLI for homing, scooping and reading the axes by hand on the device. |
+| `run_simulated.py` | Runs the app against simulated boards in real time, for machines without them. |
 
-## Key functions (`stepper_hardware.py`)
+## How it runs
 
-- **`scoop(num_left, num_right)`** — scoops the requested number of balls on
-  each side. If either side is 5, sides are staggered to avoid a collision.
-- **`stop_balls(end_at_home=True)`** — halts ball momentum before a re-scoop so
-  the arms can grab cleanly.
-- **`home(board)` / `double_home()`** — home the steppers. `double_home` homes
-  each arm's vertical and horizontal motors together (two at a time).
-- **`quit_all()` / `admin_quit_all()`** — home, disable motors, and quit; the
-  systemd service then restarts the app.
+Everything runs on Kivy's main loop and nothing sleeps. Each frame calls
+`Exhibit.tick()`, which polls the boards and moves to the next step or phase
+once the current one is done. A visitor's scoop goes:
+
+`READY` -> `PREPARING` (re-home only if an axis isn't at 0 on a closed switch)
+-> `STOPPING_BALLS` -> `SCOOPING` -> `CHECKING_HOME` (re-home if an arm came
+back short) -> `COOLDOWN` (motors off) -> `READY`.
+
+Any board error or motion timeout turns the motors off and ends the app, and
+systemd restarts it, which homes again on startup.
 
 ## UI
 
-- Sliders/ball images limit selection so the two sides never sum to more than 5.
-- Ball images change color to reflect how many are selected per side.
+- Tap a ball to pull it and its outer neighbours to the nearer side (the middle
+  ball goes right), or swipe it either way. Tap a pulled ball to lower it.
+- At most 4 balls go to one side and 5 in total, and the outermost ball on each
+  side can't be pulled across.
 
 ### Admin
 
 - Invisible admin button in the bottom-right corner. Password: `7266`.
-- **Restart** — homes, disables motors, and quits the app; the systemd service
-  restarts it automatically. (Use this to reset a misbehaving session.)
-- **Quit** — a true shutdown: homes, disables motors, then runs
-  `systemctl stop newtons-cradle.service` so the app does **not** restart. The
-  exhibit stays off until powered off or the service is started again.
-- **Back** — re-homes the steppers and returns to the main screen.
+- **Restart** — stops any motion, homes, disables motors, and quits the app;
+  the systemd service restarts it automatically. (Use this to reset a
+  misbehaving session.)
+- **Quit** — a true shutdown: stops any motion, homes, disables motors, then
+  runs `systemctl stop newtons-cradle.service` so the app does **not** restart.
+  The exhibit stays off until powered off or the service is started again.
+- **Back** — stops any motion, re-homes the steppers, and returns to the main
+  screen.
 
 #### Tuning offsets and cooldown
 
 The `+`/`−` controls at the top of the admin screen adjust live values that are
-saved to `variables.json` and applied immediately to the hardware:
+saved to `variables.json` and used from the next move on. A press that would
+break a limit below is ignored:
 
-- **`offset_left` / `offset_right`** — horizontal trim (mm) for how far each arm
-  reaches toward the balls. Defaults 9 (right) / −4 (left).
+- **`offset_left` / `offset_right`** — horizontal trim (mm) for each arm's
+  pickup and release points. Defaults 9 (right) / −4 (left). Must keep the
+  one-ball release point (60 mm) in front of home.
 - **`offset_v_left` / `offset_v_right`** — vertical trim (mm) added to each arm's
-  lift height when scooping. Defaults 0.
-- **`COOLDOWN_SECS`** — seconds to wait between scoops.
+  lift height. Defaults 0. Must keep the lift above 0.
+- **`cooldown_secs`** — seconds the balls swing after a scoop before the next
+  visitor can start one. Stored as `COOLDOWN_SECS`. Can't go below 0.
 
 #### Enabling the Quit button
 
