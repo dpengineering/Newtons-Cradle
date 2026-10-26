@@ -2,8 +2,9 @@ from dataclasses import dataclass
 
 from dpeaDPi.simulation import HomeSwitchWindow, SimulatedDPiStepper
 
-# Every axis homes toward negative steps onto a switch that stays closed up to the hard stop.
-HOME_SWITCH = HomeSwitchWindow(start=-(2**31), end=0)
+# Every axis homes toward negative steps onto a switch closed for 200 steps behind 0, so an axis
+# that loses more steps than that reads open and fails to home.
+HOME_SWITCH = HomeSwitchWindow(start=-200, end=0)
 DISCONNECTED_SWITCH = HomeSwitchWindow(start=-(2**31), end=-(2**31))
 
 

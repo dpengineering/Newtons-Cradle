@@ -66,8 +66,7 @@ uv run pytest
 `tests/` runs `stepper_hardware.py` and the Kivy screens against `dpeaDPi`'s
 `SimulatedDPiStepper`, which replays the board firmware's acceleration ramp and
 homing, with each axis's home switch mounted at position 0. No boards are
-needed. Known bugs are marked `xfail(strict=True)`, so fixing one turns its
-test into an unexpected pass until the mark is removed.
+needed.
 
 ## Code layout
 

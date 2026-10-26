@@ -8,18 +8,6 @@ H, V = 0, 1
 COMBOS = [(left, right) for left in range(6) for right in range(6) if 0 < left + right <= 5]
 
 
-def known_bug(reason):
-    return pytest.mark.xfail(strict=True, reason=reason)
-
-
-RIGHT_ARM_NOT_AWAITED = known_bug("the right arm's moves are fired without waiting when the left arm or the release also moves")
-# Combos where the right arm is still moving when its next command is sent. In the
-# others the left arm's blocking moves happen to take long enough to cover it.
-RIGHT_ARM_STILL_MOVING = {(0, 5), (1, 1), (1, 2), (1, 3), (2, 2), (3, 1)}
-SCOOP_COMBOS = [
-    pytest.param(*combo, marks=RIGHT_ARM_NOT_AWAITED) if combo in RIGHT_ARM_STILL_MOVING else combo
-    for combo in COMBOS
-]
 OFFSETS = st.integers(min_value=-30, max_value=30)
 
 
@@ -44,14 +32,13 @@ def homed(board, stepperNum):
     return board.getCurrentPositionInSteps(stepperNum) == 0 and board.getStepperStatus(stepperNum).at_home
 
 
-@pytest.mark.parametrize("num_left,num_right", SCOOP_COMBOS)
+@pytest.mark.parametrize("num_left,num_right", COMBOS)
 def test_scoop_never_moves_both_axes_of_an_arm_at_once(boards, num_left, num_right):
     hw.scoop(num_left, num_right)
     overlapping = [move for move in arm_moves(boards) if move.other_axis_moving]
     assert not overlapping, overlapping[0]
 
 
-@RIGHT_ARM_NOT_AWAITED
 @pytest.mark.parametrize("end_at_home", [True, False])
 def test_stop_balls_never_moves_both_axes_of_an_arm_at_once(boards, end_at_home):
     hw.stop_balls(end_at_home)
@@ -59,7 +46,7 @@ def test_stop_balls_never_moves_both_axes_of_an_arm_at_once(boards, end_at_home)
     assert not overlapping, overlapping[0]
 
 
-@pytest.mark.parametrize("num_left,num_right", SCOOP_COMBOS)
+@pytest.mark.parametrize("num_left,num_right", COMBOS)
 def test_scoop_drops_balls_at_release_distance(boards, num_left, num_right):
     hw.scoop(num_left, num_right)
     for board, count in zip(boards, (num_right, num_left)):
@@ -113,7 +100,6 @@ def test_double_home_zeroes_every_axis_on_its_switch(boards, sim_state):
             assert homed(board, stepperNum)
 
 
-@known_bug("homing sets acceleration to the homing speed and speed_reset() only restores speed")
 @pytest.mark.parametrize("home", [hw.double_home, lambda: (hw.home(0), hw.home(1))], ids=["double_home", "home"])
 @pytest.mark.parametrize("num_left,num_right", [(1, 0), (2, 3)])
 def test_scoop_after_homing_runs_as_fast_as_after_startup(boards, sim_state, home, num_left, num_right):
@@ -123,7 +109,6 @@ def test_scoop_after_homing_runs_as_fast_as_after_startup(boards, sim_state, hom
     assert scoop_duration(sim_state, num_left, num_right) == pytest.approx(after_startup)
 
 
-@known_bug("double_home() ignores the False that moveBothToHomeInSteps returns")
 def test_double_home_raises_when_a_switch_never_closes(boards, sim_state):
     start_away_from_home(sim_state, *boards)
     boards[1].disconnect_switch(H)
@@ -131,14 +116,12 @@ def test_double_home_raises_when_a_switch_never_closes(boards, sim_state):
         hw.double_home()
 
 
-@known_bug("_wait_while_busy() prints a warning on timeout and carries on")
 def test_wait_raises_when_a_motor_never_stops(boards):
     boards[0].stalled.add(H)
     with pytest.raises(TimeoutError):
         hw.back_to_home()
 
 
-@known_bug("home() defaults to board 0, so the left arm is never homed")
 @pytest.mark.parametrize("shutdown", ["quit_all", "admin_quit_all", "shutdown_service"])
 def test_shutdown_paths_home_both_arms_and_disable_motors(boards, sim_state, monkeypatch, shutdown):
     start_away_from_home(sim_state, *boards)
