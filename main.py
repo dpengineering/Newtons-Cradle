@@ -154,7 +154,7 @@ def scoop_balls_thread(*largs):
 
     @disable_motors_on_failure
     def step2(dt):
-        double_home()
+        verify_home()
         main.wait.text = "Resetting..."
         Clock.schedule_once(step3, 1)
 

@@ -183,11 +183,12 @@ def run_scoop(monkeypatch, num_left, num_right):
     return clock, scooped
 
 
-def test_scoop_sequence_scoops_the_selection_then_unlocks_after_cooldown(monkeypatch, boards):
+def test_scoop_sequence_scoops_the_selection_then_unlocks_after_cooldown(monkeypatch, boards, homings):
     clock, scooped = run_scoop(monkeypatch, 1, 3)
     assert screen.is_paused
     clock.run()
     assert scooped == [(1, 3)]
+    assert homings == []
     assert not screen.is_paused
     assert clock.now >= main.COOLDOWN_SECS
     for board in boards:
