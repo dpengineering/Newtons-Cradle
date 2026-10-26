@@ -6,7 +6,6 @@ os.environ.setdefault("KIVY_NO_CONSOLELOG", "1")
 import subprocess
 import time
 
-import pidev.kivy  # noqa: F401  registers DPEAButton with Kivy's Factory
 from dpeaDPi.DPiStepper import DPiStepper
 from kivy.animation import Animation
 from kivy.app import App
