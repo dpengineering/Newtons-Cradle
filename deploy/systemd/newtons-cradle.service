@@ -1,3 +1,5 @@
+# Runs at boot once the update service finishes, and restarts 3 s after the app exits unless stopped with systemctl.
+# Starts main.py on the desktop's display (DISPLAY=:0) from the exhibit checkout's venv.
 [Unit]
 Description=Newton's Cradle exhibit
 Wants=newtons-cradle-update.service
