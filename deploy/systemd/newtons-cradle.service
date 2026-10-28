@@ -1,17 +1,16 @@
-# Runs at boot once the update service finishes, and restarts 3 s after the app exits unless stopped with systemctl.
+# Runs at boot once the update service finishes. Restarts only after a clean exit (admin Restart), so a crash leaves it off.
 # Starts main.py on the desktop's display (DISPLAY=:0) from the exhibit checkout's venv.
 [Unit]
 Description=Newton's Cradle exhibit
 Wants=newtons-cradle-update.service
 After=newtons-cradle-update.service
-StartLimitIntervalSec=0
 
 [Service]
 User=@USER@
 WorkingDirectory=@EXHIBIT_DIR@
 Environment=DISPLAY=:0
 ExecStart=@EXHIBIT_DIR@/.venv/bin/python -u main.py
-Restart=always
+Restart=on-success
 RestartSec=3
 
 [Install]
