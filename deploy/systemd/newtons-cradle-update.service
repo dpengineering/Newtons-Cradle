@@ -1,3 +1,5 @@
+# Runs once at boot, after the network is up and before the exhibit starts.
+# Pulls the latest main into the exhibit checkout, keeping the current commit if that fails.
 [Unit]
 Description=Update the Newton's Cradle exhibit from main
 Wants=network-online.target
