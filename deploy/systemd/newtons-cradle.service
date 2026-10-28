@@ -11,6 +11,8 @@ WorkingDirectory=@EXHIBIT_DIR@
 Environment=DISPLAY=:0
 # Kivy logs to the console, which systemd sends to the journal, so skip its ~/.kivy/logs files.
 Environment=KIVY_NO_FILELOG=1
+# Fill whatever screen is attached at its native resolution.
+Environment=KCFG_GRAPHICS_FULLSCREEN=auto
 ExecStart=@EXHIBIT_DIR@/.venv/bin/python -u main.py
 Restart=on-success
 RestartSec=3
