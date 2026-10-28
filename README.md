@@ -14,48 +14,67 @@ conservation of momentum.
   - On each board: stepper 0 = horizontal axis, stepper 1 = vertical axis.
 - **Home/limit switches** on each axis, used by the homing routine.
 
-## Running
+## Set up the exhibit Pi
 
-The app runs as a **systemd service** (`newtons-cradle.service`) that launches
-`main.py` at boot and restarts it automatically if it ever exits or crashes.
+The Pi runs the DPEA Raspberry Pi image. The exhibit runs from a clean checkout
+in `/opt/dpea/Newtons-Cradle` that tracks `main`. Develop in a separate checkout,
+such as `~/src/Newtons-Cradle`.
 
-Install on the Pi (repo cloned to `/home/pi/Newtons-Cradle`):
-
-Dependencies are pinned in `pyproject.toml` / `uv.lock` and installed with
-[uv](https://docs.astral.sh/uv/) into `.venv/`, which the service runs from.
+Create a read-only deploy key on the Pi:
 
 ```bash
-cd /home/pi/Newtons-Cradle && uv sync --locked --no-dev
-
-# One-time: create this machine's live tuning file from the template.
-cp /home/pi/Newtons-Cradle/variables.example.json /home/pi/Newtons-Cradle/variables.json
-
-sudo cp /home/pi/Newtons-Cradle/newtons-cradle.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now newtons-cradle.service
+ssh-keygen -t ed25519 -N "" -C "newtons-cradle-pi" -f ~/.ssh/newtons_cradle_deploy
+cat ~/.ssh/newtons_cradle_deploy.pub
 ```
 
-`variables.json` holds this exhibit's live tuning (offsets + cooldown) and is
-written by the admin page, so it is **git-ignored** — each machine keeps its own
-and `git pull` never overwrites it. `variables.example.json` is the tracked
-default to copy from.
+Add the public key under the repository's Settings > Deploy keys with write
+access left off. Then add this to `~/.ssh/config`:
 
-Useful commands:
+```text
+Host github-newtons-cradle
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/newtons_cradle_deploy
+    IdentitiesOnly yes
+```
+
+Clone the development checkout and run setup:
 
 ```bash
-systemctl status newtons-cradle.service      # is it running?
-journalctl -u newtons-cradle.service -f      # live logs
-sudo systemctl restart newtons-cradle.service
+git clone git@github-newtons-cradle:dpengineering/Newtons-Cradle.git ~/src/Newtons-Cradle
+~/src/Newtons-Cradle/deploy/setup.sh
+sudo reboot
 ```
 
-`main.py` loads its `.kv` files and `AdminScreen` using paths relative to the
-repo root, so it must be run with the repo root as the working directory (the
-service sets `WorkingDirectory=/home/pi/Newtons-Cradle`).
+Setup clones the exhibit checkout, installs its dependencies, enables the
+`newtons-cradle-update` and `newtons-cradle` services, lets the admin Quit button
+stop the service, logs into the desktop at boot, and turns off screen blanking.
+Run it again after changing anything in `deploy/systemd`.
 
-> Note: SDL logs harmless `EVDEV KeyCode 330 ... not recognized by SDL`
-> messages — that code is the touchscreen's `BTN_TOUCH` event, which has no
-> keyboard mapping. It has no effect on the app; the service filters these
-> lines out of the logs.
+On each boot, `newtons-cradle-update` fetches `main` and resets the exhibit
+checkout to it. Without internet the exhibit runs the code it already has. If
+the new commit's dependencies fail to install, it returns to the previous
+commit. `newtons-cradle` then runs `main.py` on the desktop. If the app crashes
+it stays off until the exhibit is power-cycled.
+
+`variables.json` holds this exhibit's tuning from the admin screen. It is
+git-ignored, so updates never touch it, and the app uses the defaults in
+`config.py` until the admin screen saves one. When moving an exhibit to this
+setup, copy its old `variables.json` into `/opt/dpea/Newtons-Cradle/`.
+
+The exhibit holds the DPi boards. Stop it before running the development
+checkout against the hardware:
+
+```bash
+sudo systemctl stop newtons-cradle
+```
+
+Read the logs, including why the app stopped:
+
+```bash
+journalctl -u newtons-cradle-update -b
+journalctl -u newtons-cradle -b
+```
 
 ## Tests
 
@@ -86,9 +105,9 @@ uv run python run_simulated.py
 | `motion.py` | `MotionRunner`, which runs a plan one step at a time without blocking, and the step parts (`MoveTo`, `SeekSwitch`, `Settle`, `Do`). |
 | `config.py` | Geometry, speeds and homing constants, and `Tuning`, the validated per-machine trims stored in `variables.json`. |
 | `Kivy/` | `.kv` layouts, `AdminScreen`, and images. |
-| `variables.json` | Per-machine live tuning (offsets + cooldown), written by the admin UI. Git-ignored; copied from `variables.example.json`. |
+| `variables.json` | Per-machine live tuning (offsets + cooldown), written by the admin UI. Git-ignored. |
 | `variables.example.json` | Tracked default template for `variables.json`. |
-| `newtons-cradle.service` | systemd unit that runs the app at boot. |
+| `deploy/` | `setup.sh`, the boot-time `update.sh`, and the systemd units that run the exhibit from `/opt`. |
 | `stepper_cli.py` | CLI for homing, scooping and reading the axes by hand on the device. |
 | `run_simulated.py` | Runs the app against simulated boards in real time, for machines without them. |
 
@@ -102,8 +121,8 @@ once the current one is done. A visitor's scoop goes:
 -> `STOPPING_BALLS` -> `SCOOPING` -> `CHECKING_HOME` (re-home if an arm came
 back short) -> `COOLDOWN` (motors off) -> `READY`.
 
-Any board error or motion timeout turns the motors off and ends the app, and
-systemd restarts it, which homes again on startup.
+Any board error or motion timeout turns the motors off and ends the app, which
+stays off until the exhibit is power-cycled.
 
 ## UI
 
@@ -120,7 +139,7 @@ systemd restarts it, which homes again on startup.
   misbehaving session.)
 - **Quit** — a true shutdown: stops any motion, homes, disables motors, then
   runs `systemctl stop newtons-cradle.service` so the app does **not** restart.
-  The exhibit stays off until powered off or the service is started again.
+  The exhibit stays off until it is power-cycled.
 - **Back** — stops any motion, re-homes the steppers, and returns to the main
   screen.
 
@@ -137,19 +156,3 @@ break a limit below is ignored:
   lift height. Defaults 0. Must keep the lift above 0.
 - **`cooldown_secs`** — seconds the balls swing after a scoop before the next
   visitor can start one. Stored as `COOLDOWN_SECS`. Can't go below 0.
-
-#### Enabling the Quit button
-
-The **Quit** button runs `sudo systemctl stop newtons-cradle.service`. For the
-`pi` user to do that without a password prompt, add a sudoers rule (run once on
-the Pi):
-
-```bash
-echo 'pi ALL=(root) NOPASSWD: /usr/bin/systemctl stop newtons-cradle.service' \
-  | sudo tee /etc/sudoers.d/newtons-cradle >/dev/null \
-  && sudo chmod 440 /etc/sudoers.d/newtons-cradle \
-  && sudo visudo -c
-```
-
-To bring the exhibit back after a **Quit**, power-cycle it or run
-`sudo systemctl start newtons-cradle.service`.
