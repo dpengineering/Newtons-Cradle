@@ -1,8 +1,4 @@
 #!/usr/bin/python3
-import os
-
-os.environ.setdefault("KIVY_NO_CONSOLELOG", "1")
-
 import subprocess
 import time
 
