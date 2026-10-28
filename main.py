@@ -280,7 +280,7 @@ class NewtonsCradleApp(App):
         self.shutdown = shutdown
 
     def build(self):
-        # Restart just ends the app, and systemd's Restart=always starts it again.
+        # Restart just ends the app, and systemd's Restart=on-success starts it again.
         sm = build_screens(self.exhibit, restart=self.stop, shutdown=self.shutdown)
         self.exhibit.start()
         Clock.schedule_interval(lambda dt: self.exhibit.tick(), 0)
