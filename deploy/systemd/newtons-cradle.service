@@ -9,6 +9,8 @@ After=newtons-cradle-update.service
 User=@USER@
 WorkingDirectory=@EXHIBIT_DIR@
 Environment=DISPLAY=:0
+# Kivy logs to the console, which systemd sends to the journal, so skip its ~/.kivy/logs files.
+Environment=KIVY_NO_FILELOG=1
 ExecStart=@EXHIBIT_DIR@/.venv/bin/python -u main.py
 Restart=on-success
 RestartSec=3
