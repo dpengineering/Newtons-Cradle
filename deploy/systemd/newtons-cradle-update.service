@@ -1,0 +1,13 @@
+[Unit]
+Description=Update the Newton's Cradle exhibit from main
+Wants=network-online.target
+After=network-online.target
+Before=newtons-cradle.service
+
+[Service]
+Type=oneshot
+User=@USER@
+ExecStart=@EXHIBIT_DIR@/deploy/update.sh
+
+[Install]
+WantedBy=multi-user.target
