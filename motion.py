@@ -30,6 +30,18 @@ class MoveTo:
         return board.getStepperStatus(stepper).stopped and board.getCurrentPositionInSteps(stepper) == self.target
 
 
+class StartMove(MoveTo):
+    """Sends the move without waiting for it. An AwaitMove later in the plan waits for it."""
+
+    def done(self, now):
+        return True
+
+
+class AwaitMove(MoveTo):
+    def start(self, now):
+        pass
+
+
 @dataclass
 class SeekSwitch:
     axis: Axis
