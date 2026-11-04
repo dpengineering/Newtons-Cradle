@@ -1,7 +1,7 @@
 import pytest
 
 from arms import HORIZONTAL as H, VERTICAL as V
-from config import LIFT_DISTANCE, RELEASE_DISTANCES, mm_to_steps, pickup_mm
+from config import DISTANCE_TO_FIRST_BALL, LIFT_DISTANCE, RELEASE_DISTANCES, mm_to_steps, pickup_mm
 from cradle_sim import push_off_switch, run
 from motion import HomingError
 
@@ -42,9 +42,9 @@ def test_scoop_never_moves_both_axes_of_an_arm_at_once(arms, boards, sim_state, 
     assert not overlapping, overlapping[0]
 
 
-@pytest.mark.parametrize("end_at_home", [True, False])
-def test_stop_balls_never_moves_both_axes_of_an_arm_at_once(arms, boards, sim_state, end_at_home):
-    arms.stop_balls(end_at_home)
+@pytest.mark.parametrize("num_left,num_right", [(0, 0), (0, 2), (3, 0), (2, 3)])
+def test_stop_balls_never_moves_both_axes_of_an_arm_at_once(arms, boards, sim_state, num_left, num_right):
+    arms.stop_balls(num_left, num_right)
     finish(arms, sim_state)
     overlapping = [move for move in all_moves(boards) if move.other_axis_moving]
     assert not overlapping, overlapping[0]
@@ -91,11 +91,21 @@ def test_scoop_rejects_impossible_counts_without_moving(arms, boards, num_left, 
 
 def test_stop_balls_lifts_by_each_arms_vertical_trim(arms, boards, sim_state):
     arms.tuning.offset_v_left, arms.tuning.offset_v_right = 7, -3
-    arms.stop_balls(end_at_home=True)
+    arms.stop_balls(0, 0)
     finish(arms, sim_state)
     for board, offset_v in zip(boards, (-3, 7)):
         assert [move.target for move in board.moves if move.stepper == V and move.target > 0] == [
             mm_to_steps(LIFT_DISTANCE + offset_v)]
+
+
+@pytest.mark.parametrize("num_left,num_right", [(0, 0), (0, 2), (3, 0), (2, 3)])
+def test_stop_balls_sends_home_only_the_arms_with_nothing_to_scoop(arms, boards, sim_state, num_left, num_right):
+    arms.stop_balls(num_left, num_right)
+    finish(arms, sim_state)
+    tuning = arms.tuning
+    for board, count, offset in zip(boards, (num_right, num_left), (tuning.offset_right, tuning.offset_left)):
+        assert board.getCurrentPositionInSteps(V) == 0
+        assert board.getCurrentPositionInSteps(H) == (mm_to_steps(DISTANCE_TO_FIRST_BALL + offset) if count else 0)
 
 
 def test_home_zeroes_every_axis_on_its_switch(arms, boards, sim_state):

@@ -79,10 +79,10 @@ class CradleArms:
         self._runner.start(self._home_plan())
 
     def back_to_home(self):
-        self._runner.start(self._back_to_home_plan())
+        self._runner.start(self._back_to_home_plan(self.boards))
 
-    def stop_balls(self, end_at_home):
-        self._runner.start(self._stop_balls_plan(end_at_home))
+    def stop_balls(self, num_left, num_right):
+        self._runner.start(self._stop_balls_plan(num_left, num_right))
 
     def scoop(self, num_left, num_right):
         self._runner.start(self._scoop_plan(num_left, num_right))
@@ -127,19 +127,21 @@ class CradleArms:
     def _move(self, stepper, targets_mm):
         return Step(*(MoveTo(self._axis(board, stepper), mm_to_steps(mm)) for board, mm in targets_mm))
 
-    def _back_to_home_plan(self):
+    def _back_to_home_plan(self, boards):
         # Verticals first so the scoopers can't hit the cradle on the way back.
-        return [self._move(VERTICAL, [(board, 0) for board in self.boards]),
-                self._move(HORIZONTAL, [(board, 0) for board in self.boards])]
+        return [self._move(VERTICAL, [(board, 0) for board in boards]),
+                self._move(HORIZONTAL, [(board, 0) for board in boards])]
 
-    def _stop_balls_plan(self, end_at_home):
+    def _stop_balls_plan(self, num_left, num_right):
         arms = self._arm_offsets()
-        plan = [*self._back_to_home_plan(),
+        plan = [*self._back_to_home_plan(self.boards),
                 self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in arms]),
                 self._move(HORIZONTAL, [(board, DISTANCE_TO_FIRST_BALL + offset) for board, offset, _ in arms]),
                 self._move(VERTICAL, [(board, 0) for board in self.boards])]
-        if end_at_home:
-            plan += self._back_to_home_plan()
+        # An arm with nothing to scoop must clear the balls that swing out on its side.
+        idle = [board for board, count in ((self.right, num_right), (self.left, num_left)) if not count]
+        if idle:
+            plan += self._back_to_home_plan(idle)
         return plan
 
     def _scoop_plan(self, num_left, num_right):
@@ -159,4 +161,5 @@ class CradleArms:
                 self._move(HORIZONTAL, [(board, RELEASE_DISTANCES[count] + offset) for board, count, offset, _ in group]),
             ]
         # Lowering both scoopers together drops the balls together.
-        return plan + [self._move(VERTICAL, [(board, 0) for board in self.boards]), *self._back_to_home_plan()]
+        return plan + [self._move(VERTICAL, [(board, 0) for board in self.boards]),
+                       *self._back_to_home_plan(self.boards)]

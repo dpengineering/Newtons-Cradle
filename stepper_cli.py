@@ -45,7 +45,7 @@ def prompt(arms):
         elif command == 'back_to_home':
             arms.back_to_home()
         elif command == 'stop_balls':
-            arms.stop_balls(end_at_home=True)
+            arms.stop_balls(0, 0)
         elif command == 'scoop' and len(args) == 2 and all(arg.isdigit() for arg in args):
             try:
                 arms.scoop(int(args[0]), int(args[1]))
