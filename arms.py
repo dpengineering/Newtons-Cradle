@@ -15,7 +15,7 @@ from config import (
     mm_to_steps,
     pickup_mm,
 )
-from motion import Axis, Do, MotionRunner, MoveTo, SeekSwitch, Settle, Step
+from motion import Axis, AwaitMove, Do, MotionRunner, MoveTo, SeekSwitch, Settle, StartMove, Step
 
 HORIZONTAL, VERTICAL = 0, 1
 TOWARD_HOME = -1
@@ -79,10 +79,10 @@ class CradleArms:
         self._runner.start(self._home_plan())
 
     def back_to_home(self):
-        self._runner.start(self._back_to_home_plan(self.boards))
+        self._runner.start(self._back_to_home_plan())
 
-    def stop_balls(self, num_left, num_right):
-        self._runner.start(self._stop_balls_plan(num_left, num_right))
+    def stop_balls(self):
+        self._runner.start(self._stop_balls_plan())
 
     def scoop(self, num_left, num_right):
         self._runner.start(self._scoop_plan(num_left, num_right))
@@ -127,22 +127,17 @@ class CradleArms:
     def _move(self, stepper, targets_mm):
         return Step(*(MoveTo(self._axis(board, stepper), mm_to_steps(mm)) for board, mm in targets_mm))
 
-    def _back_to_home_plan(self, boards):
+    def _back_to_home_plan(self):
         # Verticals first so the scoopers can't hit the cradle on the way back.
-        return [self._move(VERTICAL, [(board, 0) for board in boards]),
-                self._move(HORIZONTAL, [(board, 0) for board in boards])]
+        return [self._move(VERTICAL, [(board, 0) for board in self.boards]),
+                self._move(HORIZONTAL, [(board, 0) for board in self.boards])]
 
-    def _stop_balls_plan(self, num_left, num_right):
+    def _stop_balls_plan(self):
         arms = self._arm_offsets()
-        plan = [*self._back_to_home_plan(self.boards),
+        return [*self._back_to_home_plan(),
                 self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in arms]),
                 self._move(HORIZONTAL, [(board, DISTANCE_TO_FIRST_BALL + offset) for board, offset, _ in arms]),
                 self._move(VERTICAL, [(board, 0) for board in self.boards])]
-        # An arm with nothing to scoop must clear the balls that swing out on its side.
-        idle = [board for board, count in ((self.right, num_right), (self.left, num_left)) if not count]
-        if idle:
-            plan += self._back_to_home_plan(idle)
-        return plan
 
     def _scoop_plan(self, num_left, num_right):
         if num_left < 0 or num_right < 0 or not 0 < num_left + num_right <= MAX_BALLS:
@@ -150,10 +145,14 @@ class CradleArms:
         right, left = self._arm_offsets()
         arms = [(board, count, offset, offset_v)
                 for (board, offset, offset_v), count in ((right, num_right), (left, num_left)) if count]
+        # An arm with nothing to scoop heads home while the other scoops, and must be clear of the
+        # balls that swing out on its side before the drop.
+        idle = [self._axis(board, HORIZONTAL)
+                for (board, _, _), count in ((right, num_right), (left, num_left)) if not count]
 
         # With every ball taken the arms would collide moving together, so the right arm goes first.
         groups = [[arm] for arm in arms] if num_left + num_right == MAX_BALLS else [arms]
-        plan = []
+        plan = [Step(*(StartMove(axis, 0) for axis in idle))]
         for group in groups:
             plan += [
                 self._move(HORIZONTAL, [(board, pickup_mm(count, offset)) for board, count, offset, _ in group]),
@@ -161,5 +160,6 @@ class CradleArms:
                 self._move(HORIZONTAL, [(board, RELEASE_DISTANCES[count] + offset) for board, count, offset, _ in group]),
             ]
         # Lowering both scoopers together drops the balls together.
-        return plan + [self._move(VERTICAL, [(board, 0) for board in self.boards]),
-                       *self._back_to_home_plan(self.boards)]
+        return plan + [Step(*(AwaitMove(axis, 0) for axis in idle)),
+                       self._move(VERTICAL, [(board, 0) for board in self.boards]),
+                       *self._back_to_home_plan()]

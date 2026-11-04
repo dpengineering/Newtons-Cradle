@@ -114,7 +114,7 @@ class Exhibit:
             if not self.arms.is_home():
                 self.arms.home()
         elif phase is Phase.STOPPING_BALLS:
-            self.arms.stop_balls(num_left, num_right)
+            self.arms.stop_balls()
         elif phase is Phase.SCOOPING:
             self.arms.scoop(num_left, num_right)
         elif phase is Phase.COOLDOWN:
