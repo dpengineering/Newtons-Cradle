@@ -13,6 +13,8 @@ Environment=DISPLAY=:0
 Environment=KIVY_NO_FILELOG=1
 # Fill whatever screen is attached at its native resolution.
 Environment=KCFG_GRAPHICS_FULLSCREEN=auto
+# The Pi reads the touchscreen both as a mouse and through hidinput, so each tap lands twice. Drop the mouse copy.
+Environment=KCFG_INPUT_MOUSE=mouse,disable_on_activity
 ExecStart=@EXHIBIT_DIR@/.venv/bin/python -u main.py
 Restart=on-success
 RestartSec=3
