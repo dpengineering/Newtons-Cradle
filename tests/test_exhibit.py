@@ -23,14 +23,14 @@ def until(exhibit, phase):
 
 
 def motors_on(boards):
-    states = {board.getStepperStatus(stepper).enabled for board in boards for stepper in (0, 1)}
+    states = {board.getStepperStatus(stepper).enabled for board in boards for stepper in (board.h, board.v)}
     assert len(states) == 1
     return states.pop()
 
 
 def test_startup_homes_arms_that_start_off_their_switches(boards, sim_state):
     for board in boards:
-        for stepper in (0, 1):
+        for stepper in (board.h, board.v):
             board.moveToAbsolutePositionInSteps(stepper, 2000, False)
     sim_state.run_until_idle()
     arms = CradleArms(*boards, Tuning(), sim_state.clock.now)
@@ -88,7 +88,7 @@ def test_empty_scoop_requests_are_ignored(exhibit):
 
 
 def test_an_arm_pushed_off_its_switch_while_ready_is_rehomed_before_the_scoop(exhibit, boards, sim_state, homings):
-    push_off_switch(boards[1], 0, 500)
+    push_off_switch(boards[1], boards[1].h, 500)
     exhibit.request_scoop(1, 1)
     assert exhibit.phase is Phase.PREPARING and homings == [1]
     run(sim_state, exhibit.tick, until(exhibit, Phase.READY))
@@ -101,9 +101,9 @@ def test_an_arm_that_loses_steps_mid_scoop_is_rehomed_before_cooldown(exhibit, b
     exhibit.request_scoop(0, 2)
     # Wait for the carry back to the release point, once the lift has finished.
     run(sim_state, exhibit.tick, lambda: exhibit.phase is Phase.SCOOPING
-        and right.getCurrentPositionInSteps(1) > 0 and not right.getStepperStatus(0).stopped)
+        and right.getCurrentPositionInSteps(right.v) > 0 and not right.getStepperStatus(right.h).stopped)
     # The lifted scooper slips 200 steps, so lowering it to 0 leaves it short of its switch.
-    right.setCurrentPositionInSteps(1, right.getCurrentPositionInSteps(1) - 200)
+    right.setCurrentPositionInSteps(right.v, right.getCurrentPositionInSteps(right.v) - 200)
     assert homings == []
     run(sim_state, exhibit.tick, until(exhibit, Phase.CHECKING_HOME))
     assert homings == [1]
@@ -114,7 +114,7 @@ def test_an_arm_that_loses_steps_mid_scoop_is_rehomed_before_cooldown(exhibit, b
 def test_admin_return_mid_scoop_stops_homes_and_unpowers(exhibit, boards, sim_state):
     exhibit.request_scoop(2, 3)
     run(sim_state, exhibit.tick, until(exhibit, Phase.SCOOPING))
-    run(sim_state, exhibit.tick, lambda: any(board.getCurrentPositionInSteps(0) > 0 for board in boards))
+    run(sim_state, exhibit.tick, lambda: any(board.getCurrentPositionInSteps(board.h) > 0 for board in boards))
     exhibit.request_return()
     run(sim_state, exhibit.tick, until(exhibit, Phase.READY))
     assert exhibit.arms.is_home()

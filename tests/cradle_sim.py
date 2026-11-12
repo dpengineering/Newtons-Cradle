@@ -21,11 +21,13 @@ class MoveRecord:
 class CradleStepper(SimulatedDPiStepper):
     """SimulatedDPiStepper with the exhibit's home switches mounted and a log of every move."""
 
-    def __init__(self, state, boardNumber):
+    def __init__(self, state, boardNumber, steppers):
         super().__init__(state=state, boardNumber=boardNumber)
+        # The steppers driving this arm's horizontal and vertical axes.
+        self.h, self.v = steppers
         self.moves = []
         self.stalled = set()
-        for stepperNum in (0, 1):
+        for stepperNum in steppers:
             self.controls.set_home_switch_window(stepperNum, HOME_SWITCH)
 
     def disconnect_switch(self, stepperNum):
@@ -38,7 +40,7 @@ class CradleStepper(SimulatedDPiStepper):
         return status
 
     def _record_move(self, stepperNum, target):
-        other = 1 - stepperNum
+        other = self.v if stepperNum == self.h else self.h
         self.moves.append(MoveRecord(
             at=self._state.clock.now(),
             stepper=stepperNum,

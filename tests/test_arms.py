@@ -1,6 +1,5 @@
 import pytest
 
-from arms import HORIZONTAL as H, VERTICAL as V
 from config import DISTANCE_TO_FIRST_BALL, LIFT_DISTANCE, RELEASE_DISTANCES, mm_to_steps, pickup_mm
 from cradle_sim import push_off_switch, run
 from motion import HomingError
@@ -18,7 +17,7 @@ def all_moves(boards):
 
 def start_away_from_home(boards, sim_state):
     for board in boards:
-        for stepper in (H, V):
+        for stepper in (board.h, board.v):
             board.moveToAbsolutePositionInSteps(stepper, 3000, False)
     sim_state.run_until_idle()
 
@@ -56,7 +55,7 @@ def test_scoop_drops_balls_at_the_trimmed_release_point(arms, boards, sim_state,
     tuning = arms.tuning
     for board, count, offset in zip(boards, (num_right, num_left), (tuning.offset_right, tuning.offset_left)):
         if count:
-            drop = next(move for move in board.moves if move.stepper == V and move.start > 0 and move.target == 0)
+            drop = next(move for move in board.moves if move.stepper == board.v and move.start > 0 and move.target == 0)
             assert not drop.other_axis_moving
             assert drop.other_axis_position == mm_to_steps(RELEASE_DISTANCES[count] + offset)
 
@@ -75,8 +74,8 @@ def test_scoop_reaches_and_lifts_by_each_arms_trims(arms, boards, sim_state, num
     arms.scoop(num_left, num_right)
     finish(arms, sim_state)
     for board, count, offset, offset_v in zip(boards, (num_right, num_left), (11, -6), (-3, 7)):
-        reaches = [move.target for move in board.moves if move.stepper == H and move.target > 0]
-        lifts = [move.target for move in board.moves if move.stepper == V and move.target > 0]
+        reaches = [move.target for move in board.moves if move.stepper == board.h and move.target > 0]
+        lifts = [move.target for move in board.moves if move.stepper == board.v and move.target > 0]
         assert max(reaches, default=None) == (mm_to_steps(pickup_mm(count, offset)) if count else None)
         assert lifts == ([mm_to_steps(LIFT_DISTANCE + offset_v)] if count else [])
 
@@ -93,7 +92,7 @@ def test_stop_balls_lifts_by_each_arms_vertical_trim(arms, boards, sim_state):
     arms.stop_balls()
     finish(arms, sim_state)
     for board, offset_v in zip(boards, (-3, 7)):
-        assert [move.target for move in board.moves if move.stepper == V and move.target > 0] == [
+        assert [move.target for move in board.moves if move.stepper == board.v and move.target > 0] == [
             mm_to_steps(LIFT_DISTANCE + offset_v)]
 
 
@@ -101,8 +100,8 @@ def test_stop_balls_leaves_every_scooper_lowered_at_its_first_ball(arms, boards,
     arms.stop_balls()
     finish(arms, sim_state)
     for board, offset in zip(boards, (arms.tuning.offset_right, arms.tuning.offset_left)):
-        assert board.getCurrentPositionInSteps(V) == 0
-        assert board.getCurrentPositionInSteps(H) == mm_to_steps(DISTANCE_TO_FIRST_BALL + offset)
+        assert board.getCurrentPositionInSteps(board.v) == 0
+        assert board.getCurrentPositionInSteps(board.h) == mm_to_steps(DISTANCE_TO_FIRST_BALL + offset)
 
 
 @pytest.mark.parametrize("num_left,num_right", [(1, 0), (0, 2), (3, 0), (0, 5)])
@@ -114,20 +113,20 @@ def test_an_idle_arm_heads_home_during_the_scoop_and_is_home_before_the_drop(arm
     active.moves.clear()
     idle.moves.clear()
     # Slow enough that the scooping arm reaches its release point first.
-    idle.setSpeedInStepsPerSecond(H, 1000)
+    idle.setSpeedInStepsPerSecond(idle.h, 1000)
     idle_home_at = []
 
     def tick():
         arms.tick()
-        if not idle_home_at and idle.getCurrentPositionInSteps(H) == 0 and idle.getMotionComplete(H):
+        if not idle_home_at and idle.getCurrentPositionInSteps(idle.h) == 0 and idle.getMotionComplete(idle.h):
             idle_home_at.append(sim_state.clock.now())
 
     arms.scoop(num_left, num_right)
     run(sim_state, tick, lambda: not arms.busy)
     reach = active.moves[0]
     heading_home = idle.moves[0]
-    drop = next(move for move in active.moves if move.stepper == V and move.start > 0 and move.target == 0)
-    assert (heading_home.stepper, heading_home.target, heading_home.at) == (H, 0, reach.at)
+    drop = next(move for move in active.moves if move.stepper == active.v and move.start > 0 and move.target == 0)
+    assert (heading_home.stepper, heading_home.target, heading_home.at) == (idle.h, 0, reach.at)
     assert reach.at < idle_home_at[0] <= drop.at
 
 
@@ -136,7 +135,7 @@ def test_home_zeroes_every_axis_on_its_switch(arms, boards, sim_state):
     assert not arms.is_home()
     arms.home()
     finish(arms, sim_state)
-    assert all(homed(board, stepper) for board in boards for stepper in (H, V))
+    assert all(homed(board, stepper) for board in boards for stepper in (board.h, board.v))
     assert arms.is_home()
 
 
@@ -151,22 +150,23 @@ def test_scoop_after_homing_runs_as_fast_as_after_startup(arms, boards, sim_stat
 
 def test_home_raises_when_a_switch_never_closes(arms, boards, sim_state):
     start_away_from_home(boards, sim_state)
-    boards[1].disconnect_switch(H)
+    boards[1].disconnect_switch(boards[1].h)
     arms.home()
     with pytest.raises(HomingError, match="left horizontal"):
         finish(arms, sim_state)
 
 
 def test_motion_raises_when_a_motor_never_stops(arms, boards, sim_state):
-    boards[0].stalled.add(H)
+    boards[0].stalled.add(boards[0].h)
     arms.back_to_home()
     with pytest.raises(TimeoutError):
         finish(arms, sim_state)
 
 
-@pytest.mark.parametrize("board_index,stepper", [(0, H), (0, V), (1, H), (1, V)])
-def test_is_home_notices_an_axis_pushed_off_its_switch(arms, boards, sim_state, board_index, stepper):
-    push_off_switch(boards[board_index], stepper, 400)
+@pytest.mark.parametrize("board_index,axis", [(0, "h"), (0, "v"), (1, "h"), (1, "v")])
+def test_is_home_notices_an_axis_pushed_off_its_switch(arms, boards, sim_state, board_index, axis):
+    board = boards[board_index]
+    push_off_switch(board, getattr(board, axis), 400)
     assert not arms.is_home()
     arms.home()
     finish(arms, sim_state)
@@ -178,7 +178,7 @@ def test_abort_stops_every_moving_axis(arms, boards, sim_state):
     for _ in range(20):
         arms.tick()
         sim_state.clock.advance(0.016)
-    assert any(not board.getStepperStatus(stepper).stopped for board in boards for stepper in (H, V))
+    assert any(not board.getStepperStatus(stepper).stopped for board in boards for stepper in (board.h, board.v))
     arms.abort()
     assert not arms.busy
-    assert all(board.getStepperStatus(stepper).stopped for board in boards for stepper in (H, V))
+    assert all(board.getStepperStatus(stepper).stopped for board in boards for stepper in (board.h, board.v))

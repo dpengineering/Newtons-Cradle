@@ -5,6 +5,11 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# The stepper, and the home switch input beside it, driving each arm's (horizontal, vertical) axes.
+# The right horizontal is on stepper 2 while board 0's stepper 0 switch is out of use.
+RIGHT_STEPPERS = (2, 1)
+LEFT_STEPPERS = (0, 1)
+
 STEPS_PER_MM = 64
 SPEED_MM_PER_S = 200
 ACCEL_MM_PER_S2 = 200

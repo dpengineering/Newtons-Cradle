@@ -7,9 +7,11 @@ from config import (
     HOME_SETTLE_S,
     HOME_SLOW_SPEED_STEPS_PER_S,
     HOME_SPEED_STEPS_PER_S,
+    LEFT_STEPPERS,
     LIFT_DISTANCE,
     MAX_BALLS,
     RELEASE_DISTANCES,
+    RIGHT_STEPPERS,
     SPEED_MM_PER_S,
     Tuning,
     mm_to_steps,
@@ -17,6 +19,7 @@ from config import (
 )
 from motion import Axis, AwaitMove, Do, MotionRunner, MoveTo, SeekSwitch, Settle, StartMove, Step
 
+# Each arm's axes, as indexes into RIGHT_STEPPERS and LEFT_STEPPERS.
 HORIZONTAL, VERTICAL = 0, 1
 TOWARD_HOME = -1
 
@@ -27,7 +30,8 @@ def _seek_timeout(speed):
 
 class CradleArms:
     """The two scooper arms. Board 0 drives the right arm and board 1 the left, each with a
-    horizontal (stepper 0) and vertical (stepper 1) axis homed toward negative steps.
+    horizontal and vertical axis homed toward negative steps on the steppers in RIGHT_STEPPERS
+    and LEFT_STEPPERS.
 
     Every motion method starts a plan and returns at once. Call tick() until busy is False.
     """
@@ -37,13 +41,17 @@ class CradleArms:
         self.left = left
         self.tuning = tuning
         self._runner = MotionRunner(clock)
-        self.axes = [Axis(board, stepper, "%s %s" % (side, direction))
+        self.axes = [Axis(board, self.stepper(board, role), "%s %s" % (side, direction))
                      for board, side in ((right, "right"), (left, "left"))
-                     for stepper, direction in ((HORIZONTAL, "horizontal"), (VERTICAL, "vertical"))]
+                     for role, direction in ((HORIZONTAL, "horizontal"), (VERTICAL, "vertical"))]
 
     @property
     def boards(self):
         return self.right, self.left
+
+    def stepper(self, board, role):
+        """The stepper number on this board that drives its HORIZONTAL or VERTICAL axis."""
+        return (RIGHT_STEPPERS if board is self.right else LEFT_STEPPERS)[role]
 
     @property
     def busy(self):
@@ -88,11 +96,10 @@ class CradleArms:
         self._runner.start(self._scoop_plan(num_left, num_right))
 
     def _set_rates(self, speed, acceleration=None):
-        for board in self.boards:
-            for stepper in (HORIZONTAL, VERTICAL):
-                board.setSpeedInStepsPerSecond(stepper, speed)
-                if acceleration is not None:
-                    board.setAccelerationInStepsPerSecondPerSecond(stepper, acceleration)
+        for board, stepper, _ in self.axes:
+            board.setSpeedInStepsPerSecond(stepper, speed)
+            if acceleration is not None:
+                board.setAccelerationInStepsPerSecondPerSecond(stepper, acceleration)
 
     def _zero_counters(self):
         for board, stepper, _ in self.axes:
@@ -121,11 +128,12 @@ class CradleArms:
                  Do(lambda: self._set_rates(mm_to_steps(SPEED_MM_PER_S), mm_to_steps(ACCEL_MM_PER_S2)))),
         ]
 
-    def _axis(self, board, stepper):
+    def _axis(self, board, role):
+        stepper = self.stepper(board, role)
         return next(axis for axis in self.axes if axis.board is board and axis.stepper == stepper)
 
-    def _move(self, stepper, targets_mm):
-        return Step(*(MoveTo(self._axis(board, stepper), mm_to_steps(mm)) for board, mm in targets_mm))
+    def _move(self, role, targets_mm):
+        return Step(*(MoveTo(self._axis(board, role), mm_to_steps(mm)) for board, mm in targets_mm))
 
     def _back_to_home_plan(self):
         # Verticals first so the scoopers can't hit the cradle on the way back.

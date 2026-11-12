@@ -7,7 +7,7 @@ import pytest
 from dpeaDPi.simulation import SimState
 
 from arms import CradleArms
-from config import Tuning
+from config import LEFT_STEPPERS, RIGHT_STEPPERS, Tuning
 from cradle_sim import CradleStepper, run
 from exhibit import Exhibit, Phase
 
@@ -20,7 +20,7 @@ def sim_state():
 @pytest.fixture
 def boards(sim_state):
     """Simulated right (board 0) and left (board 1) arms with their home switches mounted at 0."""
-    return CradleStepper(sim_state, 0), CradleStepper(sim_state, 1)
+    return CradleStepper(sim_state, 0, RIGHT_STEPPERS), CradleStepper(sim_state, 1, LEFT_STEPPERS)
 
 
 @pytest.fixture

@@ -11,7 +11,9 @@ conservation of momentum.
 - **4 stepper motors** across **two DPiStepper boards** (`dpeaDPi` library). A
   board has three drivers, so the four motors need both:
   - Board 0 = right arm, Board 1 = left arm.
-  - On each board: stepper 0 = horizontal axis, stepper 1 = vertical axis.
+  - On each board: stepper 0 = horizontal axis, stepper 1 = vertical axis, except the
+    right horizontal, which is on stepper 2 for now. `RIGHT_STEPPERS` / `LEFT_STEPPERS` in
+    `config.py` set this.
 - **Home/limit switches** on each axis, used by the homing routine.
 
 ## Set up the exhibit Pi

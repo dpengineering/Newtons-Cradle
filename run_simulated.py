@@ -3,7 +3,7 @@
 from dpeaDPi.simulation import HomeSwitchWindow, SimState, SimulatedDPiStepper, WallClock
 
 from arms import CradleArms
-from config import Tuning
+from config import LEFT_STEPPERS, RIGHT_STEPPERS, Tuning
 from exhibit import Exhibit
 from main import NewtonsCradleApp
 
@@ -12,8 +12,8 @@ HOME_SWITCH = HomeSwitchWindow(start=-(2**31), end=0)
 
 def simulated_boards(state):
     boards = SimulatedDPiStepper(state, 0), SimulatedDPiStepper(state, 1)
-    for board in boards:
-        for stepper in (0, 1):
+    for board, steppers in zip(boards, (RIGHT_STEPPERS, LEFT_STEPPERS)):
+        for stepper in steppers:
             board.controls.set_home_switch_window(stepper, HOME_SWITCH)
             # Start each axis off its switch, the way the arms sit after a power cut.
             board.moveToAbsolutePositionInSteps(stepper, 2000, False)
