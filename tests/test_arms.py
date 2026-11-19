@@ -1,11 +1,13 @@
 import pytest
 
+from arms import JOG_TRIMS, Position
 from config import (
     DISTANCE_TO_FIRST_BALL,
     LIFT_DISTANCE,
     RELEASE_DISTANCES,
     STOP_BALLS_BACK_OFF,
     STOP_BALLS_HOLD_S,
+    Tuning,
     mm_to_steps,
     pickup_mm,
 )
@@ -235,3 +237,71 @@ def test_abort_stops_every_moving_axis(arms, boards, sim_state):
     arms.abort()
     assert not arms.busy
     assert all(board.getStepperStatus(stepper).stopped for board in boards for stepper in (board.h, board.v))
+
+
+def held_steps(arms, position):
+    """Each board's (horizontal, vertical) steps when the arms hold this position."""
+    tuning = arms.tuning
+    stops = (DISTANCE_TO_FIRST_BALL + tuning.offset_right + tuning.stop_offset_right,
+             DISTANCE_TO_FIRST_BALL + tuning.offset_left + tuning.stop_offset_left)
+    lifts = (LIFT_DISTANCE + tuning.offset_v_right, LIFT_DISTANCE + tuning.offset_v_left)
+    return [(mm_to_steps(stop) if position is Position.STOP else 0,
+             0 if position is Position.HOME else mm_to_steps(lift)) for stop, lift in zip(stops, lifts)]
+
+
+def steps(boards):
+    return [(board.getCurrentPositionInSteps(board.h), board.getCurrentPositionInSteps(board.v)) for board in boards]
+
+
+@pytest.mark.parametrize("target", list(Position))
+@pytest.mark.parametrize("start", [None, *Position])
+def test_go_to_reaches_each_position_from_anywhere_one_axis_at_a_time(arms, boards, sim_state, start, target):
+    arms.tuning.offset_left, arms.tuning.offset_right = -6, 11
+    arms.tuning.offset_v_left, arms.tuning.offset_v_right = 7, -3
+    arms.tuning.stop_offset_left, arms.tuning.stop_offset_right = 4, -2
+    if start is None:
+        start_away_from_home(boards, sim_state)
+    else:
+        arms.go_to(start, Position.HOME)
+        finish(arms, sim_state)
+    for board in boards:
+        board.moves.clear()
+    arms.go_to(target, start)
+    finish(arms, sim_state)
+    assert steps(boards) == held_steps(arms, target)
+    if start is not None:
+        overlapping = [move for move in all_moves(boards) if move.other_axis_moving]
+        assert not overlapping, overlapping[0]
+
+
+@pytest.mark.parametrize("target", [Position.HOME, Position.RAISED])
+def test_leaving_stop_backs_off_the_balls_before_lowering(arms, boards, sim_state, target):
+    arms.go_to(Position.STOP, Position.HOME)
+    finish(arms, sim_state)
+    stops = [h for h, _ in held_steps(arms, Position.STOP)]
+    for board in boards:
+        board.moves.clear()
+    arms.go_to(target, Position.STOP)
+    finish(arms, sim_state)
+    for board, stop in zip(boards, stops):
+        lower = next(move for move in board.moves if move.stepper == board.v and move.start > 0 and move.target == 0)
+        assert lower.other_axis_position == stop - mm_to_steps(STOP_BALLS_BACK_OFF)
+
+
+@pytest.mark.parametrize("position,trims,axis", [(Position.STOP, ("stop_offset_left", "stop_offset_right"), "h"),
+                                                 (Position.RAISED, ("offset_v_left", "offset_v_right"), "v")])
+def test_going_to_the_held_position_sends_only_its_trimmed_axis(arms, boards, sim_state, position, trims, axis):
+    arms.go_to(position, Position.HOME)
+    finish(arms, sim_state)
+    for board in boards:
+        board.moves.clear()
+    for trim in trims:
+        setattr(arms.tuning, trim, getattr(arms.tuning, trim) + 3)
+    arms.go_to(position, position)
+    finish(arms, sim_state)
+    assert steps(boards) == held_steps(arms, position)
+    assert {move.stepper for board in boards for move in board.moves} == {getattr(board, axis) for board in boards}
+
+
+def test_jog_trims_name_real_tuning_fields():
+    assert {trim for trims in JOG_TRIMS.values() for trim in trims.values()} <= set(Tuning.model_fields)

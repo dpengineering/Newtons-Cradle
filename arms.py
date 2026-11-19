@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 from dpeaDPi import StepperDriver
 
 from config import (
@@ -24,6 +26,21 @@ from motion import Axis, AwaitMove, Do, MotionRunner, MoveTo, SeekSwitch, Settle
 # Each arm's axes, as indexes into RIGHT_STEPPERS and LEFT_STEPPERS.
 HORIZONTAL, VERTICAL = 0, 1
 TOWARD_HOME = -1
+
+
+class Position(Enum):
+    """Where the admin screen can hold the arms while tuning them."""
+
+    HOME = auto()
+    RAISED = auto()
+    STOP = auto()
+
+
+# The trim each arm's jog changes at a position. The switches set HOME, so it has none.
+JOG_TRIMS = {
+    Position.RAISED: {"left": "offset_v_left", "right": "offset_v_right"},
+    Position.STOP: {"left": "stop_offset_left", "right": "stop_offset_right"},
+}
 
 
 def _seek_timeout(speed):
@@ -97,6 +114,10 @@ class CradleArms:
     def scoop(self, num_left, num_right):
         self._runner.start(self._scoop_plan(num_left, num_right))
 
+    def go_to(self, position, start):
+        """Moves the arms from start to position. A start of None homes on the switches first."""
+        self._runner.start(self._go_to_plan(position, start))
+
     def _set_rates(self, speed, acceleration=None):
         for board, stepper, _ in self.axes:
             board.setSpeedInStepsPerSecond(stepper, speed)
@@ -142,17 +163,41 @@ class CradleArms:
         return [self._move(VERTICAL, [(board, 0) for board in self.boards]),
                 self._move(HORIZONTAL, [(board, 0) for board in self.boards])]
 
-    def _stop_balls_plan(self):
-        arms = self._arm_offsets()
+    def _lift(self):
+        return self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in self._arm_offsets()])
+
+    def _stop_points(self):
         tuning = self.tuning
-        clamp = [(self.right, DISTANCE_TO_FIRST_BALL + tuning.offset_right + tuning.stop_offset_right),
-                 (self.left, DISTANCE_TO_FIRST_BALL + tuning.offset_left + tuning.stop_offset_left)]
-        return [*self._back_to_home_plan(),
-                self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in arms]),
-                self._move(HORIZONTAL, clamp),
+        return [(self.right, DISTANCE_TO_FIRST_BALL + tuning.offset_right + tuning.stop_offset_right),
+                (self.left, DISTANCE_TO_FIRST_BALL + tuning.offset_left + tuning.stop_offset_left)]
+
+    def _stop_balls_plan(self):
+        stops = self._stop_points()
+        return [*self._back_to_home_plan(), self._lift(), self._move(HORIZONTAL, stops),
                 Step(Settle(STOP_BALLS_HOLD_S)),
-                self._move(HORIZONTAL, [(board, mm - STOP_BALLS_BACK_OFF) for board, mm in clamp]),
+                self._move(HORIZONTAL, [(board, mm - STOP_BALLS_BACK_OFF) for board, mm in stops]),
                 self._move(VERTICAL, [(board, 0) for board in self.boards])]
+
+    def _back_off_where_held(self):
+        # Trim edits don't move held arms, so back off from where they are rather than from the trims.
+        back_off = mm_to_steps(STOP_BALLS_BACK_OFF)
+        return Step(*(MoveTo(axis, axis.board.getCurrentPositionInSteps(axis.stepper) - back_off)
+                      for axis in (self._axis(board, HORIZONTAL) for board in self.boards)))
+
+    def _go_to_plan(self, position, start):
+        climb = {Position.HOME: [],
+                 Position.RAISED: [self._lift()],
+                 Position.STOP: [self._lift(), self._move(HORIZONTAL, self._stop_points())]}
+        if position is start:
+            # A jog changed this position's trim, so only its last move needs sending again.
+            return climb[position][-1:]
+        if start is None:
+            leave = self._home_plan()
+        elif start is Position.STOP:
+            leave = [self._back_off_where_held(), *self._back_to_home_plan()]
+        else:
+            leave = self._back_to_home_plan()
+        return leave + climb[position]
 
     def _scoop_plan(self, num_left, num_right):
         if num_left < 0 or num_right < 0 or not 0 < num_left + num_right <= MAX_BALLS:

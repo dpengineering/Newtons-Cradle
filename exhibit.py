@@ -1,7 +1,9 @@
 from enum import Enum, auto
 from typing import NamedTuple
 
-from arms import CradleArms
+from pydantic import ValidationError
+
+from arms import JOG_TRIMS, CradleArms, Position
 
 
 class Phase(Enum):
@@ -13,6 +15,8 @@ class Phase(Enum):
     CHECKING_HOME = auto()
     COOLDOWN = auto()
     RETURNING = auto()
+    POSITIONING = auto()
+    POSITIONED = auto()
     SHUTTING_DOWN = auto()
     STOPPED = auto()
 
@@ -32,6 +36,8 @@ OUTPUTS = {
     Phase.CHECKING_HOME: Output("Enjoying...", False, True),
     Phase.COOLDOWN: Output("Enjoying...", False, False),
     Phase.RETURNING: Output("Homing...", False, True),
+    Phase.POSITIONING: Output("Adjusting...", False, True),
+    Phase.POSITIONED: Output("Adjusting...", False, True),
     Phase.SHUTTING_DOWN: Output("Homing...", False, True),
     Phase.STOPPED: Output("Please Wait", False, False),
 }
@@ -44,6 +50,7 @@ AFTER_MOTION = {
     Phase.SCOOPING: Phase.CHECKING_HOME,
     Phase.CHECKING_HOME: Phase.COOLDOWN,
     Phase.RETURNING: Phase.READY,
+    Phase.POSITIONING: Phase.POSITIONED,
     Phase.SHUTTING_DOWN: Phase.STOPPED,
 }
 
@@ -64,6 +71,9 @@ class Exhibit:
         self._selection = (0, 0)
         self._cooldown_ends = 0.0
         self._on_stopped = None
+        # Where the admin screen holds the arms, or is moving them, while positioning.
+        self.position = Position.HOME
+        self._route_start = Position.HOME
 
     def start(self):
         self.arms.initialize()
@@ -77,6 +87,32 @@ class Exhibit:
     def request_return(self):
         self.arms.abort()
         self._enter(Phase.RETURNING)
+
+    def request_position(self, position):
+        if self.phase is Phase.POSITIONED:
+            start = self.position
+        else:
+            self.arms.abort()
+            start = Position.HOME if self.arms.is_home() else None
+        self._go(start, position)
+
+    def jog_trim(self, side):
+        """The trim that jogging this side's arm changes where the arms are being held, if any."""
+        if self.phase not in (Phase.POSITIONING, Phase.POSITIONED) or self.position not in JOG_TRIMS:
+            return None
+        return JOG_TRIMS[self.position][side]
+
+    def request_jog(self, side, delta):
+        trim = self.jog_trim(side)
+        if self.phase is not Phase.POSITIONED or trim is None:
+            return
+        tuning = self.arms.tuning
+        try:
+            setattr(tuning, trim, getattr(tuning, trim) + delta)
+        except ValidationError:
+            return
+        tuning.save()
+        self._go(self.position, self.position)
 
     def request_exit(self, on_stopped):
         self.arms.abort()
@@ -100,6 +136,11 @@ class Exhibit:
         elif self.phase in AFTER_MOTION:
             self._enter(AFTER_MOTION[self.phase])
 
+    def _go(self, start, position):
+        self._route_start = start
+        self.position = position
+        self._enter(Phase.POSITIONING)
+
     def _enter(self, phase):
         self.phase = phase
         motors_on = OUTPUTS[phase].motors_on
@@ -117,6 +158,8 @@ class Exhibit:
             self.arms.stop_balls()
         elif phase is Phase.SCOOPING:
             self.arms.scoop(num_left, num_right)
+        elif phase is Phase.POSITIONING:
+            self.arms.go_to(self.position, self._route_start)
         elif phase is Phase.COOLDOWN:
             self._cooldown_ends = self._clock() + self.arms.tuning.cooldown_secs
         elif phase is Phase.STOPPED:

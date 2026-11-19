@@ -16,6 +16,8 @@ class MoveRecord:
     target: int
     other_axis_moving: bool
     other_axis_position: int
+    # Homing seeks its switches with relative moves. Every other move is absolute.
+    relative: bool
 
 
 class CradleStepper(SimulatedDPiStepper):
@@ -39,7 +41,7 @@ class CradleStepper(SimulatedDPiStepper):
             return status._replace(stopped=False)
         return status
 
-    def _record_move(self, stepperNum, target):
+    def _record_move(self, stepperNum, target, relative):
         other = self.v if stepperNum == self.h else self.h
         self.moves.append(MoveRecord(
             at=self._state.clock.now(),
@@ -48,14 +50,15 @@ class CradleStepper(SimulatedDPiStepper):
             target=target,
             other_axis_moving=not self.getMotionComplete(other),
             other_axis_position=self.getCurrentPositionInSteps(other),
+            relative=relative,
         ))
 
     def moveToAbsolutePositionInSteps(self, stepperNum, absolutePositionToMoveToInSteps, waitToFinishFlg):
-        self._record_move(stepperNum, absolutePositionToMoveToInSteps)
+        self._record_move(stepperNum, absolutePositionToMoveToInSteps, False)
         super().moveToAbsolutePositionInSteps(stepperNum, absolutePositionToMoveToInSteps, waitToFinishFlg)
 
     def moveToRelativePositionInSteps(self, stepperNum, distanceToMoveInSteps, waitToFinishFlg):
-        self._record_move(stepperNum, self.getCurrentPositionInSteps(stepperNum) + distanceToMoveInSteps)
+        self._record_move(stepperNum, self.getCurrentPositionInSteps(stepperNum) + distanceToMoveInSteps, True)
         super().moveToRelativePositionInSteps(stepperNum, distanceToMoveInSteps, waitToFinishFlg)
 
 
