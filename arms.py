@@ -13,6 +13,8 @@ from config import (
     RELEASE_DISTANCES,
     RIGHT_STEPPERS,
     SPEED_MM_PER_S,
+    STOP_BALLS_BACK_OFF,
+    STOP_BALLS_HOLD_S,
     Tuning,
     mm_to_steps,
     pickup_mm,
@@ -142,9 +144,12 @@ class CradleArms:
 
     def _stop_balls_plan(self):
         arms = self._arm_offsets()
+        clamp = [(board, DISTANCE_TO_FIRST_BALL + offset) for board, offset, _ in arms]
         return [*self._back_to_home_plan(),
                 self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in arms]),
-                self._move(HORIZONTAL, [(board, DISTANCE_TO_FIRST_BALL + offset) for board, offset, _ in arms]),
+                self._move(HORIZONTAL, clamp),
+                Step(Settle(STOP_BALLS_HOLD_S)),
+                self._move(HORIZONTAL, [(board, mm - STOP_BALLS_BACK_OFF) for board, mm in clamp]),
                 self._move(VERTICAL, [(board, 0) for board in self.boards])]
 
     def _scoop_plan(self, num_left, num_right):
