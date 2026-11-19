@@ -147,13 +147,19 @@ stays off until the exhibit is power-cycled.
 
 #### Tuning offsets and cooldown
 
-The `+`/`−` controls at the top of the admin screen adjust live values that are
+The `+`/`−` controls on the admin screen adjust live values that are
 saved to `variables.json` and used from the next move on. A press that would
 break a limit below is ignored:
 
 - **`offset_left` / `offset_right`** — horizontal trim (mm) for each arm's
-  pickup and release points. Defaults 9 (right) / −4 (left). Must keep the
-  one-ball release point (60 mm) in front of home.
+  pickup, release and ball-stopping points. Defaults 9 (right) / −4 (left).
+  Must keep the one-ball release point (60 mm) in front of home.
+- **`stop_offset_left` / `stop_offset_right`**: extra horizontal trim (mm),
+  added to the arm's horizontal trim, for only where it stops the balls before
+  a scoop. Use these to center the balls between the arms without moving the
+  pickups. Positive moves that arm further in, so raise one and lower the
+  other by the same amount to shift the balls without squeezing them harder.
+  Defaults 0. Can't go below -39.
 - **`offset_v_left` / `offset_v_right`** — vertical trim (mm) added to each arm's
   lift height. Defaults 0. Must keep the lift above 0.
 - **`cooldown_secs`** — seconds the balls swing after a scoop before the next
