@@ -164,11 +164,13 @@ def test_cooldown_never_goes_below_zero(ui, exhibit, monkeypatch, tmp_path):
     assert exhibit.arms.tuning.cooldown_secs == 0 and cooldown.value == 0
 
 
-def test_offset_edits_reach_the_arms_and_variables_json(ui, exhibit, monkeypatch, tmp_path):
+@pytest.mark.parametrize("name,delta,expected", [("offset_right", 1, 10), ("stop_offset_left", -1, -1),
+                                                 ("stop_offset_right", 1, 1)])
+def test_offset_edits_reach_the_arms_and_variables_json(ui, exhibit, monkeypatch, tmp_path, name, delta, expected):
     monkeypatch.chdir(tmp_path)
-    changer(ui[0], "offset_right").step(1)
-    assert exhibit.arms.tuning.offset_right == 10
-    assert '"offset_right": 10' in (tmp_path / "variables.json").read_text()
+    changer(ui[0], name).step(delta)
+    assert getattr(exhibit.arms.tuning, name) == expected
+    assert '"%s": %d' % (name, expected) in (tmp_path / "variables.json").read_text()
 
 
 @pytest.mark.parametrize("action,expected", [("restart_action", "restart"), ("shutdown_action", "shutdown")])

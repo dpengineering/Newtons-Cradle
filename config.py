@@ -46,6 +46,9 @@ def pickup_mm(num_balls, offset):
 # lift but not below the rest position.
 HorizontalOffset = Annotated[int, Field(gt=-RELEASE_DISTANCES[1])]
 VerticalOffset = Annotated[int, Field(gt=-LIFT_DISTANCE)]
+# A stop trim moves only where the arm stops the balls, on top of its horizontal trim, and must
+# leave the arm room to back off in front of home even at the lowest horizontal trim.
+StopOffset = Annotated[int, Field(gt=-(DISTANCE_TO_FIRST_BALL - STOP_BALLS_BACK_OFF - RELEASE_DISTANCES[1]))]
 
 
 class Tuning(BaseModel):
@@ -57,6 +60,8 @@ class Tuning(BaseModel):
     offset_right: HorizontalOffset = 9
     offset_v_left: VerticalOffset = 0
     offset_v_right: VerticalOffset = 0
+    stop_offset_left: StopOffset = 0
+    stop_offset_right: StopOffset = 0
     cooldown_secs: int = Field(default=20, ge=0, alias="COOLDOWN_SECS")
 
     @classmethod

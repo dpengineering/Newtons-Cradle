@@ -196,6 +196,18 @@
             center_x: root.width * .85
             center_y: root.height * .85
         VariableChanger:
+            name: "stop_offset_left"
+            tuning: root.tuning
+            size_hint: None,None
+            center_x: root.width * .15
+            center_y: root.height * .60
+        VariableChanger:
+            name: "stop_offset_right"
+            tuning: root.tuning
+            size_hint: None,None
+            center_x: root.width * .85
+            center_y: root.height * .60
+        VariableChanger:
             name: "cooldown_secs"
             tuning: root.tuning
             size_hint: None,None

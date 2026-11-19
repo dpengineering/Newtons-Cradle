@@ -137,6 +137,26 @@ def test_stop_balls_holds_the_balls_then_backs_off_before_lowering(arms, boards,
         assert lower.other_axis_position == back_off.target
 
 
+@pytest.mark.parametrize("num_left,num_right", [(1, 0), (0, 2), (2, 3)])
+def test_stop_trims_move_only_where_the_arms_stop_the_balls(arms, boards, sim_state, num_left, num_right):
+    arms.tuning.offset_left, arms.tuning.offset_right = -6, 11
+    arms.tuning.stop_offset_left, arms.tuning.stop_offset_right = 4, -3
+    arms.stop_balls()
+    finish(arms, sim_state)
+    stop_moves = [[move.target for move in board.moves if move.stepper == board.h and move.target > 0]
+                  for board in boards]
+    for board in boards:
+        board.moves.clear()
+    arms.scoop(num_left, num_right)
+    finish(arms, sim_state)
+    for board, moves, count, offset, stop_offset in zip(boards, stop_moves, (num_right, num_left), (11, -6), (-3, 4)):
+        clamp = DISTANCE_TO_FIRST_BALL + offset + stop_offset
+        assert moves == [mm_to_steps(clamp), mm_to_steps(clamp - STOP_BALLS_BACK_OFF)]
+        reaches = [move.target for move in board.moves if move.stepper == board.h and move.target > 0]
+        assert reaches == ([mm_to_steps(pickup_mm(count, offset)), mm_to_steps(RELEASE_DISTANCES[count] + offset)]
+                           if count else [])
+
+
 @pytest.mark.parametrize("num_left,num_right", [(1, 0), (0, 2), (3, 0), (0, 5)])
 def test_an_idle_arm_heads_home_during_the_scoop_and_is_home_before_the_drop(arms, boards, sim_state,
                                                                             num_left, num_right):

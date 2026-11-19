@@ -144,7 +144,9 @@ class CradleArms:
 
     def _stop_balls_plan(self):
         arms = self._arm_offsets()
-        clamp = [(board, DISTANCE_TO_FIRST_BALL + offset) for board, offset, _ in arms]
+        tuning = self.tuning
+        clamp = [(self.right, DISTANCE_TO_FIRST_BALL + tuning.offset_right + tuning.stop_offset_right),
+                 (self.left, DISTANCE_TO_FIRST_BALL + tuning.offset_left + tuning.stop_offset_left)]
         return [*self._back_to_home_plan(),
                 self._move(VERTICAL, [(board, LIFT_DISTANCE + offset_v) for board, _, offset_v in arms]),
                 self._move(HORIZONTAL, clamp),
