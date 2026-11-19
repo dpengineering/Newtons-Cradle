@@ -60,8 +60,8 @@ class Tuning(BaseModel):
     offset_right: HorizontalOffset = 9
     offset_v_left: VerticalOffset = 0
     offset_v_right: VerticalOffset = 0
-    stop_offset_left: StopOffset = 0
-    stop_offset_right: StopOffset = 0
+    stop_offset_left: StopOffset = 2
+    stop_offset_right: StopOffset = 1
     cooldown_secs: int = Field(default=20, ge=0, alias="COOLDOWN_SECS")
 
     @classmethod
