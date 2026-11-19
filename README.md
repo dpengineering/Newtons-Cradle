@@ -159,7 +159,7 @@ break a limit below is ignored:
   a scoop. Use these to center the balls between the arms without moving the
   pickups. Positive moves that arm further in, so raise one and lower the
   other by the same amount to shift the balls without squeezing them harder.
-  Defaults 0. Can't go below -39.
+  Defaults 2 (left) / 1 (right). Can't go below -39.
 - **`offset_v_left` / `offset_v_right`** — vertical trim (mm) added to each arm's
   lift height. Defaults 0. Must keep the lift above 0.
 - **`cooldown_secs`** — seconds the balls swing after a scoop before the next

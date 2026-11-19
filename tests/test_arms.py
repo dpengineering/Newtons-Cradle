@@ -107,7 +107,9 @@ def test_stop_balls_lifts_by_each_arms_vertical_trim(arms, boards, sim_state):
 def test_stop_balls_leaves_every_scooper_lowered_just_off_its_first_ball(arms, boards, sim_state):
     arms.stop_balls()
     finish(arms, sim_state)
-    for board, offset in zip(boards, (arms.tuning.offset_right, arms.tuning.offset_left)):
+    tuning = arms.tuning
+    stops = (tuning.offset_right + tuning.stop_offset_right, tuning.offset_left + tuning.stop_offset_left)
+    for board, offset in zip(boards, stops):
         assert board.getCurrentPositionInSteps(board.v) == 0
         assert board.getCurrentPositionInSteps(board.h) == mm_to_steps(
             DISTANCE_TO_FIRST_BALL + offset - STOP_BALLS_BACK_OFF)
@@ -116,6 +118,7 @@ def test_stop_balls_leaves_every_scooper_lowered_just_off_its_first_ball(arms, b
 def test_stop_balls_holds_the_balls_then_backs_off_before_lowering(arms, boards, sim_state):
     arms.tuning.offset_left, arms.tuning.offset_right = -6, 11
     arms.tuning.offset_v_left, arms.tuning.offset_v_right = 7, -3
+    arms.tuning.stop_offset_left, arms.tuning.stop_offset_right = 0, 0
     clamps = [mm_to_steps(DISTANCE_TO_FIRST_BALL + offset) for offset in (11, -6)]
     clamped_at = [None, None]
 
