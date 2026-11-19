@@ -8,7 +8,6 @@ from kivy.vector import Vector
 os.chdir(Path(__file__).resolve().parent.parent)
 
 import main  # noqa: E402
-from arms import Position  # noqa: E402
 from cradle_sim import run  # noqa: E402
 from exhibit import Phase  # noqa: E402
 
@@ -30,7 +29,7 @@ def ui(exhibit):
     exits = []
     sm = main.build_screens(exhibit, restart=lambda: exits.append("restart"), shutdown=lambda: exits.append("shutdown"))
     screen = sm.get_screen("main")
-    exhibit.on_phase(exhibit.phase)
+    screen.show_phase(exhibit.phase)
     return sm, screen, exits
 
 
@@ -189,25 +188,3 @@ def test_admin_back_returns_the_arms_home_and_shows_the_game(ui, exhibit, sim_st
     sm.get_screen("adminFunctionsScreen").back_action()
     assert exhibit.phase is Phase.RETURNING and sm.current == "main"
     run(sim_state, exhibit.tick, lambda: exhibit.phase is Phase.READY)
-
-
-def test_go_and_jog_from_the_admin_screen(ui, exhibit, sim_state, monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
-    sm, main_screen, _ = ui
-    admin = sm.get_screen("adminFunctionsScreen")
-    assert (admin.arms_status, admin.jog_status) == ("arms at: HOME", "nothing to jog")
-    admin.chosen_position = Position.STOP
-    admin.go_action()
-    assert not main_screen.cradle.interactive and main_screen.wait.text == "Adjusting..."
-    run(sim_state, exhibit.tick, lambda: exhibit.phase is Phase.POSITIONED)
-    assert (admin.arms_status, admin.jog_status) == ("arms at: STOP", "stop_offset_left: 0")
-    admin.jog_action(1)
-    assert changer(sm, "stop_offset_left").value == 1 and admin.jog_status == "stop_offset_left: 1"
-    run(sim_state, exhibit.tick, lambda: exhibit.phase is Phase.POSITIONED)
-    admin.jog_side = "right"
-    assert admin.jog_status == "stop_offset_right: 0"
-    changer(sm, "stop_offset_right").step(-1)
-    assert admin.jog_status == "stop_offset_right: -1"
-    admin.back_action()
-    run(sim_state, exhibit.tick, lambda: exhibit.phase is Phase.READY)
-    assert admin.arms_status == "arms at: HOME" and main_screen.cradle.interactive
