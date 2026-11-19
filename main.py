@@ -14,7 +14,7 @@ from kivy.uix.widget import Widget
 from kivy.vector import Vector
 from pydantic import ValidationError
 
-from arms import CradleArms, Position
+from arms import CradleArms
 from config import Tuning
 from exhibit import OUTPUTS, Exhibit, Phase
 from Kivy.Scenes.AdminScreen import AdminScreen
@@ -239,40 +239,6 @@ class AdminFunctionsScreen(Screen):
     tuning = ObjectProperty(None)
     restart = ObjectProperty(None)
     shutdown = ObjectProperty(None)
-    chosen_position = ObjectProperty(Position.STOP)
-    jog_side = StringProperty("left")
-    arms_status = StringProperty("")
-    jog_status = StringProperty("")
-
-    def go_action(self):
-        self.exhibit.request_position(self.chosen_position)
-
-    def jog_action(self, delta):
-        self.exhibit.request_jog(self.jog_side, delta)
-
-    def on_kv_post(self, base_widget):
-        for widget in self.walk():
-            if isinstance(widget, VariableChanger):
-                widget.bind(value=lambda *args: self.show_jog())
-
-    def on_jog_side(self, *args):
-        self.show_jog()
-
-    def show_phase(self, phase):
-        if phase is Phase.POSITIONED:
-            self.arms_status = "arms at: " + self.exhibit.position.name
-        elif phase in (Phase.READY, Phase.COOLDOWN):
-            self.arms_status = "arms at: HOME"
-        else:
-            self.arms_status = "arms moving..."
-        for widget in self.walk():
-            if isinstance(widget, VariableChanger):
-                widget.refresh()
-        self.show_jog()
-
-    def show_jog(self):
-        trim = self.exhibit.jog_trim(self.jog_side)
-        self.jog_status = "%s: %d" % (trim, getattr(self.tuning, trim)) if trim else "nothing to jog"
 
     def restart_action(self):
         self.exhibit.request_exit(self.restart)
@@ -292,15 +258,9 @@ def build_screens(exhibit, restart, shutdown):
     main_screen = MainScreen(name='main', exhibit=exhibit)
     sm.add_widget(main_screen)
     sm.add_widget(AdminScreen(name='admin'))
-    functions = AdminFunctionsScreen(name='adminFunctionsScreen', exhibit=exhibit, tuning=exhibit.arms.tuning,
-                                     restart=restart, shutdown=shutdown)
-    sm.add_widget(functions)
-
-    def show_phase(phase):
-        main_screen.show_phase(phase)
-        functions.show_phase(phase)
-
-    exhibit.on_phase = show_phase
+    sm.add_widget(AdminFunctionsScreen(name='adminFunctionsScreen', exhibit=exhibit, tuning=exhibit.arms.tuning,
+                                       restart=restart, shutdown=shutdown))
+    exhibit.on_phase = main_screen.show_phase
     return sm
 
 

@@ -164,25 +164,3 @@ break a limit below is ignored:
   lift height. Defaults 0. Must keep the lift above 0.
 - **`cooldown_secs`** — seconds the balls swing after a scoop before the next
   visitor can start one. Stored as `COOLDOWN_SECS`. Can't go below 0.
-
-#### Positioning and jogging the arms
-
-The middle of the admin screen holds the arms in place so a trim can be set by
-eye. Pick a position and press **Go**. If the arms aren't already held at a
-position, any running scoop stops and they home on their switches first unless
-they're already home. The arms then hold there with the motors on, and the game
-ignores touches until **Back**:
-
-- **HOME**: both arms lowered at their switches.
-- **RAISED**: both arms lifted at home. Jogging an arm here moves it up or down
-  and saves `offset_v_left` / `offset_v_right`.
-- **STOP**: lifted and moved in to where they stop the balls before a scoop.
-  Jogging an arm here moves it in or out and saves `stop_offset_left` /
-  `stop_offset_right`.
-
-Pick **LEFT** or **RIGHT** and press `+`/`−` to jog that arm 1 mm. A press
-while the arms are moving, or one that would break a trim's limit, is ignored.
-The `+`/`−` trim controls above never move the arms. The arms use the new
-values the next time they go to a position from somewhere else. **Go** from
-STOP to HOME or RAISED backs the arms 20 mm off the balls from where they are
-before lowering them. **Back**, **Restart** and **Quit** home straight away.
