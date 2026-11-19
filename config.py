@@ -20,6 +20,10 @@ LIFT_DISTANCE = 50
 # How far back each count of balls is carried before the drop, so the scooper clears the cradle.
 RELEASE_DISTANCES = (0, 60, 150, 300, 400, 550)
 MAX_BALLS = 5
+# Stopping the balls holds them still in the raised scoopers, then backs the scoopers off them
+# before lowering, so letting go doesn't push the balls.
+STOP_BALLS_HOLD_S = 2
+STOP_BALLS_BACK_OFF = 20
 
 HOME_SPEED_STEPS_PER_S = 4000
 HOME_SLOW_SPEED_STEPS_PER_S = HOME_SPEED_STEPS_PER_S / 8

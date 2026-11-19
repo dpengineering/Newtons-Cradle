@@ -1,7 +1,15 @@
 import pytest
 
-from config import DISTANCE_TO_FIRST_BALL, LIFT_DISTANCE, RELEASE_DISTANCES, mm_to_steps, pickup_mm
-from cradle_sim import push_off_switch, run
+from config import (
+    DISTANCE_TO_FIRST_BALL,
+    LIFT_DISTANCE,
+    RELEASE_DISTANCES,
+    STOP_BALLS_BACK_OFF,
+    STOP_BALLS_HOLD_S,
+    mm_to_steps,
+    pickup_mm,
+)
+from cradle_sim import FRAME_SECONDS, push_off_switch, run
 from motion import HomingError
 
 COMBOS = [(left, right) for left in range(6) for right in range(6) if 0 < left + right <= 5]
@@ -96,12 +104,37 @@ def test_stop_balls_lifts_by_each_arms_vertical_trim(arms, boards, sim_state):
             mm_to_steps(LIFT_DISTANCE + offset_v)]
 
 
-def test_stop_balls_leaves_every_scooper_lowered_at_its_first_ball(arms, boards, sim_state):
+def test_stop_balls_leaves_every_scooper_lowered_just_off_its_first_ball(arms, boards, sim_state):
     arms.stop_balls()
     finish(arms, sim_state)
     for board, offset in zip(boards, (arms.tuning.offset_right, arms.tuning.offset_left)):
         assert board.getCurrentPositionInSteps(board.v) == 0
-        assert board.getCurrentPositionInSteps(board.h) == mm_to_steps(DISTANCE_TO_FIRST_BALL + offset)
+        assert board.getCurrentPositionInSteps(board.h) == mm_to_steps(
+            DISTANCE_TO_FIRST_BALL + offset - STOP_BALLS_BACK_OFF)
+
+
+def test_stop_balls_holds_the_balls_then_backs_off_before_lowering(arms, boards, sim_state):
+    arms.tuning.offset_left, arms.tuning.offset_right = -6, 11
+    arms.tuning.offset_v_left, arms.tuning.offset_v_right = 7, -3
+    clamps = [mm_to_steps(DISTANCE_TO_FIRST_BALL + offset) for offset in (11, -6)]
+    clamped_at = [None, None]
+
+    def tick():
+        arms.tick()
+        for i, (board, clamp) in enumerate(zip(boards, clamps)):
+            if (clamped_at[i] is None and board.getMotionComplete(board.h)
+                    and board.getCurrentPositionInSteps(board.h) == clamp):
+                clamped_at[i] = sim_state.clock.now()
+
+    arms.stop_balls()
+    run(sim_state, tick, lambda: not arms.busy)
+    for board, clamp, offset_v in zip(boards, clamps, (-3, 7)):
+        back_off = next(move for move in board.moves if move.stepper == board.h and move.start == clamp)
+        lower = next(move for move in board.moves if move.stepper == board.v and move.start > 0 and move.target == 0)
+        assert back_off.at - max(clamped_at) == pytest.approx(STOP_BALLS_HOLD_S, abs=2 * FRAME_SECONDS)
+        assert back_off.target == clamp - mm_to_steps(STOP_BALLS_BACK_OFF)
+        assert back_off.other_axis_position == mm_to_steps(LIFT_DISTANCE + offset_v)
+        assert lower.other_axis_position == back_off.target
 
 
 @pytest.mark.parametrize("num_left,num_right", [(1, 0), (0, 2), (3, 0), (0, 5)])
